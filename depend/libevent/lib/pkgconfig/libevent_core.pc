@@ -1,6 +1,6 @@
 #libevent pkg-config source file
 
-prefix=/work/study/Module/libevent/port/lib_linux
+prefix=/work/work/Module/libevent/port/lib_linux
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include
@@ -11,6 +11,6 @@ Version: 2.1.8-stable
 Requires:
 Conflicts:
 Libs: -L${libdir} -levent_core
-Libs.private: 
+Libs.private: -lcrypto 
 Cflags: -I${includedir}
 
