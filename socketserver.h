@@ -49,7 +49,7 @@ private:  // function
     int startConnect(struct sockaddr *s_addr, size_t s_len);
 
 private:  // static function
-    static void *serverEventThread(void *arg);
+    static void *commEventThread(void *arg);
     static void *acceptEventThread(void *arg);
     static void timingCheckHandler(evutil_socket_t fd, short event, void *arg);
     static void listenerHandler(struct evconnlistener *listener, evutil_socket_t fd,
@@ -60,10 +60,10 @@ private:  // static function
 
 private:  // variable
     volatile bool init_flag;
-    pthread_t server_thread_id;
+    pthread_t comm_thread_id;
     pthread_t accept_thread_id;
     struct event *timing_check;
-    struct event_base *server_base;
+    struct event_base *comm_base;
     struct event_base *accept_base;
     struct evconnlistener *listener;
 

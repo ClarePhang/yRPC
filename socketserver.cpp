@@ -26,10 +26,10 @@ SocketServer::SocketServer()
 {
     init_flag = false;
     timing_check = NULL;
-    server_base  = NULL;
+    comm_base    = NULL;
     accept_base  = NULL;
     listener     = NULL;
-    server_thread_id = 0;
+    comm_thread_id = 0;
     accept_thread_id = 0;
 }
 
@@ -37,10 +37,10 @@ SocketServer::~SocketServer()
 {
     init_flag = false;
     timing_check = NULL;
-    server_base  = NULL;
+    comm_base    = NULL;
     accept_base  = NULL;
     listener     = NULL;    
-    server_thread_id = 0;
+    comm_thread_id = 0;
     accept_thread_id = 0;
 }
 
@@ -159,9 +159,9 @@ int SocketServer::sendData(const char *server, const void *data, size_t size)
 
 int SocketServer::createThread(void)
 {
-//    int kill_server = -1, kill_accept = -1;
+//    int kill_comm = -1, kill_accept = -1;
     
-    if(pthread_create(&server_thread_id, NULL, serverEventThread, server_base) != 0)
+    if(pthread_create(&comm_thread_id, NULL, commEventThread, comm_base) != 0)
 	{
 		printf("Server : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
 		return -1;
@@ -178,9 +178,9 @@ int SocketServer::createThread(void)
 //        #include <signal.h>
         int pthread_kill(pthread_t thread, int sig);
         usleep(2*1000);
-        kill_server = pthread_kill(server_thread_id, 0);
+        kill_comm = pthread_kill(comm_thread_id, 0);
         kill_accept = pthread_kill(accept_thread_id, 0);
-        if((ESRCH != kill_server) && (EINVAL != kill_server) &&
+        if((ESRCH != kill_comm) && (EINVAL != kill_comm) &&
            (ESRCH != kill_accept) && (EINVAL != kill_accept))
            break;
         else
@@ -198,11 +198,11 @@ void SocketServer::destroyThread(void)
         pthread_join(accept_thread_id, NULL);
         accept_thread_id = 0;
     }
-    if(server_thread_id != 0)
+    if(comm_thread_id != 0)
     {
-        event_base_loopexit(server_base, NULL);
-        pthread_join(server_thread_id, NULL);
-        server_thread_id = 0;
+        event_base_loopexit(comm_base, NULL);
+        pthread_join(comm_thread_id, NULL);
+        comm_thread_id = 0;
     }
 }
 
@@ -217,10 +217,10 @@ int SocketServer::initEventBase(evconnlistener_cb listener_cb, struct sockaddr *
 
     evthread_use_pthreads();  //enable threads
 
-    server_base = event_base_new();
-    if(!server_base)
+    comm_base = event_base_new();
+    if(!comm_base)
     {
-        printf("Server : new server_event_base failed!\n");
+        printf("Server : new communication_event_base failed!\n");
         goto INIT_EVENT_FAILED;
     }
     
@@ -231,10 +231,10 @@ int SocketServer::initEventBase(evconnlistener_cb listener_cb, struct sockaddr *
         goto INIT_EVENT_FAILED;
     }
     
-    evthread_make_base_notifiable(server_base);
+    evthread_make_base_notifiable(comm_base);
     evthread_make_base_notifiable(accept_base);
 
-    listener = evconnlistener_new_bind(accept_base, listener_cb,(void *)server_base,
+    listener = evconnlistener_new_bind(accept_base, listener_cb,(void *)comm_base,
         LEV_OPT_REUSEABLE|LEV_OPT_REUSEABLE_PORT|LEV_OPT_THREADSAFE|BEV_OPT_CLOSE_ON_FREE,
         -1, s_addr, s_len);
     if(!listener)
@@ -261,10 +261,10 @@ void SocketServer::deinitEventBase(void)
         evconnlistener_free(listener);
         listener = NULL;
     }
-    if(server_base)
+    if(comm_base)
     {
-        event_base_free(server_base);
-        server_base = NULL;
+        event_base_free(comm_base);
+        comm_base = NULL;
     }
     if(accept_base)
     {
@@ -286,14 +286,14 @@ int SocketServer::initTimingCheckHandler(void)
         printf("Server : new timint check event failed!\n");
         return -1;
     }
-    if(evtimer_assign(timing_check, server_base, timingCheckHandler, timing_check) < 0)
+    if(evtimer_assign(timing_check, comm_base, timingCheckHandler, timing_check) < 0)
     {
         printf("Server : new timint check event failed!\n");
         goto INIT_TIMING_FAILED;
     }
     if(evtimer_add(timing_check, &tv) < 0)
     {
-        printf("Server : add timing check handler to server_base failed!\n");
+        printf("Server : add timing check handler to comm_base failed!\n");
         goto INIT_TIMING_FAILED;
     }
 
@@ -326,7 +326,7 @@ int SocketServer::startConnect(struct sockaddr *s_addr, size_t s_len)
     struct timeval read_timeout = {5, 0};
     struct timeval write_timeout = {4, 0};
 
-    bev = bufferevent_socket_new(server_base, -1, BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+    bev = bufferevent_socket_new(comm_base, -1, BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
     if(!bev)
     {
         printf("Client : new bufferevent_socket failed!\n");
@@ -353,16 +353,16 @@ CONNECT_FAILED:
     return -1;
 }
 
-void *SocketServer::serverEventThread(void *arg)
+void *SocketServer::commEventThread(void *arg)
 {
     struct event_base *base = (struct event_base *)arg;
     
-    printf("Server : server event-loop id:%lu\n",pthread_self());
-    printf("Server : server event-base addr = 0x%p\n",base);
+    printf("Server : communication event-loop id:%lu\n",pthread_self());
+    printf("Server : communication event-base addr = 0x%p\n",base);
     
     event_base_dispatch(base);
     
-    printf("Server : server event-loop exit.\n");
+    printf("Server : communication event-loop exit.\n");
     pthread_exit(NULL);
 }
 
@@ -441,8 +441,8 @@ void SocketServer::readCallback(struct bufferevent *bev, void *user_data)
     struct evbuffer *input = bufferevent_get_input(bev);
     size_t sz = evbuffer_get_length(input);
     
-    printf("\nServer : readCallback thread: %lu\n",pthread_self());
-    printf("Server : bufferevent addr :%p\n",bev);
+    printf("\nCOMM : readCallback thread: %lu\n",pthread_self());
+    printf("COMM : bufferevent addr :%p\n",bev);
 
     if(sz > 0)
     {
@@ -450,7 +450,7 @@ void SocketServer::readCallback(struct bufferevent *bev, void *user_data)
         char msg[1024] = {'\0'};
         int readlen = 1024 > sz ? sz : 1024;
         bufferevent_read(bev, msg, readlen);
-        printf("Server : recv %d, %s .\n",readlen, msg);
+        printf("COMM : recv %d, %s .\n",readlen, msg);
     }
 }
 
@@ -458,62 +458,62 @@ void SocketServer::writeCallback(struct bufferevent *bev, void *user_data)
 {
     struct evbuffer *output = bufferevent_get_output(bev);
 
-    printf("\nServer : writeCallback thread: %lu\n",pthread_self());
-    printf("Server : bufferevent addr :%p\n",bev);
+    printf("\nCOMM : writeCallback thread: %lu\n",pthread_self());
+    printf("COMM : bufferevent addr :%p\n",bev);
     
     if(evbuffer_get_length(output) == 0)
     {
-        printf("Server : Output evbuffer is flushed.\n");
+        printf("COMM : Output evbuffer is flushed.\n");
         return;
     }
 }
 
 void SocketServer::eventCallback(struct bufferevent *bev, short events, void *user_data)
 {
-    printf("\nServer : eventCallback thread: %lu\n",pthread_self());
-    printf("Server : bufferevent addr :%p\n",bev);
+    printf("\nCOMM : eventCallback thread: %lu\n",pthread_self());
+    printf("COMM : bufferevent addr :%p\n",bev);
 
     if(events & BEV_EVENT_EOF)
     {
-        printf("Server : Connection closed!\n");
+        printf("COMM : Connection closed!\n");
     }
     else if(events & BEV_EVENT_CONNECTED)
     {
-        printf("Server : New connection finishi!\n");
+        printf("COMM : New connection finishi!\n");
         return ;  // normal condition
     }
     else if(events & BEV_EVENT_ERROR)
     {
-        printf("Server : Got error on the connection:%s\n",strerror(errno));
-        //printf("Server : Got error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        printf("COMM : Got error on the connection:%s\n",strerror(errno));
+        //printf("COMM : Got error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
     }
     else if(events & BEV_EVENT_TIMEOUT)
     {
         if(events & BEV_EVENT_READING)  // read timeout
         {
-            printf("Server : read data from %p timeout!\n", bev);
+            printf("COMM : read data from %p timeout!\n", bev);
         }
         else if(events & BEV_EVENT_WRITING)
         {
-            printf("Server : write data from %p timeout!\n", bev);
+            printf("COMM : write data from %p timeout!\n", bev);
         }
         // if timeout, event will disable read/write,so:
         if(!(bufferevent_get_enabled(bev) & EV_READ))
         {
-            printf("Server : reenable %p readable.\n",bev);
+            printf("COMM : reenable %p readable.\n",bev);
             bufferevent_enable(bev, EV_READ);
         }
         if(!(bufferevent_get_enabled(bev) & EV_WRITE))
         {
-            printf("Server : reenable %p writeable.\n",bev);
+            printf("COMM : reenable %p writeable.\n",bev);
             bufferevent_enable(bev, EV_WRITE);
         }
         return ;  // normal condition
     }
     else
     {
-        printf("Server : Got unknown error on the connection:%s\n",strerror(errno));
-        //printf("Server : Got unknown error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        printf("COMM : Got unknown error on the connection:%s\n",strerror(errno));
+        //printf("COMM : Got unknown error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
     }
 
     if(bev)
