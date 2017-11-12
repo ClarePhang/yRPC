@@ -1,10 +1,10 @@
 #include <unistd.h>
 #include <string.h>
-#include "socketclient.h"
+#include "socketserver.h"
 
 #include "event.h"
 
-SocketClient client;
+SocketServer client;
 
 void timingSender(evutil_socket_t fd, short event, void *arg)
 {
@@ -12,7 +12,7 @@ void timingSender(evutil_socket_t fd, short event, void *arg)
     static int msg_num = 1;
     char reply_msg[1000] = {'\0'};
     struct event *base = (struct event *)arg;
-    char *str = (char *)"I receive a message from server";
+    char *str = (char *)"--------------------receive:";
     
     printf("\nSend data timming.\n");
     evtimer_add(base, &tv);
@@ -29,12 +29,20 @@ int main(void)
     struct timeval tv;
     struct event timeout;
     struct event_base *base;
+
+    //ret = client.serverCreate("/tmp/socket_test"); 
+    ret = client.serverCreate("127.0.0.1", 25001);
+    if(ret < 0)
+    {
+        printf("client create failed!\n");
+        return -1;
+    }
     
     //ret = client.connectServer("/tmp/socket_test");
     ret = client.connectServer("127.0.0.1", 25000);
     if(ret < 0)
     {
-        printf("connect server failed!\n");
+        printf("connect  server 127.0.0.1 failed!\n");
         return -1;
     }
     

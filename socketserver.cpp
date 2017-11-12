@@ -104,6 +104,59 @@ void SocketServer::serverDestroy(void)
     deinitEventBase();
 }
 
+int SocketServer::connectServer(const char *server)
+{
+    struct sockaddr_un su_addr;
+
+    if(initSockaddr(su_addr, server) < 0)
+        goto CONNECT_FAILED;
+
+    if(startConnect((struct sockaddr *)&su_addr,sizeof(su_addr)) < 0)
+        goto CONNECT_FAILED;
+
+    socket_method = LOCALSOCKET;
+
+    return 0;
+
+CONNECT_FAILED:
+    deinitEventBase();
+    return -1;
+}
+
+int SocketServer::connectServer(const char *server, unsigned int port)
+{
+    struct sockaddr_in si_addr;
+
+    if(initSockaddr(si_addr, server, port) < 0)
+        goto CONNECT_FAILED;
+
+    if(startConnect((struct sockaddr *)&si_addr,sizeof(si_addr)) < 0)
+        goto CONNECT_FAILED;
+
+    socket_method = TCPSOCKET;
+
+    return 0;
+    
+CONNECT_FAILED:
+    deinitEventBase();
+    return -1;
+}
+
+void SocketServer::disconnectServer(const char *server)
+{
+    return ;
+}
+
+/* for test  notice */
+struct bufferevent *global_bev = NULL;
+int SocketServer::sendData(const char *server, const void *data, size_t size)
+{
+    if(global_bev)
+        return bufferevent_write(global_bev, data, size);
+    else
+        return -1;
+}
+
 int SocketServer::createThread(void)
 {
 //    int kill_server = -1, kill_accept = -1;
@@ -203,7 +256,6 @@ INIT_EVENT_FAILED:
 
 void SocketServer::deinitEventBase(void)
 {
-    printf("failed\n");
     if(listener)
     {
         evconnlistener_free(listener);
@@ -265,6 +317,40 @@ void SocketServer::deinitTimingCheckHandler(void)
         free(timing_check);
         timing_check = NULL;
     }
+}
+
+int SocketServer::startConnect(struct sockaddr *s_addr, size_t s_len)
+{
+    int result = -1;
+    struct bufferevent *bev = NULL;
+    struct timeval read_timeout = {5, 0};
+    struct timeval write_timeout = {4, 0};
+
+    bev = bufferevent_socket_new(server_base, -1, BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+    if(!bev)
+    {
+        printf("Client : new bufferevent_socket failed!\n");
+        goto CONNECT_FAILED;
+    }
+
+    bufferevent_setcb(bev, readCallback, writeCallback, eventCallback, bev);
+    bufferevent_set_timeouts(bev, &read_timeout, &write_timeout);
+    result = bufferevent_socket_connect(bev, s_addr, s_len);
+    if( -1 == result)
+    {
+        printf("Connect failed!\n");
+        goto CONNECT_FAILED;
+    }
+
+    bufferevent_enable(bev , EV_READ|EV_WRITE);
+
+    global_bev = bev;
+    return 0;
+
+CONNECT_FAILED:
+//    if(bev)
+        //bufferevent_free(bev);
+    return -1;
 }
 
 void *SocketServer::serverEventThread(void *arg)

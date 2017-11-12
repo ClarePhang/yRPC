@@ -34,6 +34,10 @@ public: // interface
     int serverCreate(const char *server);
     int serverCreate(const char *server, unsigned int port);
     void serverDestroy(void);
+    int connectServer(const char *server);
+    int connectServer(const char *server, unsigned int port);
+    void disconnectServer(const char *server);
+    int sendData(const char *server, const void *data, size_t size);
 
 private:  // function
     int createThread(void);
@@ -42,6 +46,7 @@ private:  // function
     void deinitEventBase(void);
     int initTimingCheckHandler(void);
     void deinitTimingCheckHandler(void);
+    int startConnect(struct sockaddr *s_addr, size_t s_len);
 
 private:  // static function
     static void *serverEventThread(void *arg);
