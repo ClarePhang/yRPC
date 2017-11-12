@@ -45,16 +45,11 @@ int SocketClient::connectServer(const char *server)
     if(startConnect((struct sockaddr *)&su_addr,sizeof(su_addr)) < 0)
         goto CONNECT_FAILED;
     
-    //if(createThread() < 0)
-    //    goto CONNECT_FAILED;
+    if(createThread() < 0)
+        goto CONNECT_FAILED;
 
-    socket_method = TCPSOCKET;
+    socket_method = LOCALSOCKET;
 
-    // just for test   notice
-    event_base_dispatch(client_base);
-    printf("dispath exit.\n");
-    event_base_free(client_base);
-    
     return 0;
 
 CONNECT_FAILED:
@@ -75,21 +70,43 @@ int SocketClient::connectServer(const char *server, unsigned int port)
     if(startConnect((struct sockaddr *)&si_addr,sizeof(si_addr)) < 0)
         goto CONNECT_FAILED;
 
-    //if(createThread() < 0)
-    //    goto CONNECT_FAILED;
+    if(createThread() < 0)
+        goto CONNECT_FAILED;
 
     socket_method = TCPSOCKET;
 
-    // just for test   notice
-    event_base_dispatch(client_base);
-    printf("dispath exit.\n");
-    event_base_free(client_base);
-    
     return 0;
     
 CONNECT_FAILED:
     deinitEventBase();
     return -1;
+}
+
+void SocketClient::disconnectServer(const char *server)
+{
+    destroyThread();
+    deinitEventBase();
+}
+
+int SocketClient::createThread(void)
+{
+    if(pthread_create(&client_thread_id, NULL, clientEventThread, client_base) != 0)
+	{
+		printf("Client : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
+		return -1;
+	}
+
+    return 0;
+}
+
+void SocketClient::destroyThread(void)
+{
+    if(client_thread_id != 0)
+    {
+        event_base_loopexit(client_base, NULL);
+        pthread_join(client_thread_id, NULL);
+        client_thread_id = 0;
+    }
 }
 
 int SocketClient::initEventBase(void)
@@ -149,6 +166,19 @@ CONNECT_FAILED:
     if(bev)
         bufferevent_free(bev);
     return -1;
+}
+
+void *SocketClient::clientEventThread(void *arg)
+{
+    struct event_base *base = (struct event_base *)arg;
+    
+    printf("Client : client event-loop id:%lu\n",pthread_self());
+    printf("Client : client event-base addr = 0x%p\n",base);
+    
+    event_base_dispatch(base);
+    
+    printf("Client : client event-loop exit.\n");
+    pthread_exit(NULL);
 }
 
 void SocketClient::readCallback(struct bufferevent *bev, void *user_data)

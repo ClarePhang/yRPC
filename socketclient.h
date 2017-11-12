@@ -29,18 +29,23 @@ public:
 public:
     int connectServer(const char *server);
     int connectServer(const char *server, unsigned int port);
+    void disconnectServer(const char *server);
     
 private:  // function
+    int createThread(void);
+    void destroyThread(void);
     int initEventBase(void);
     void deinitEventBase(void);
     int startConnect(struct sockaddr *s_addr, size_t s_len);
     
 private:  // static function
+    static void *clientEventThread(void *arg);
     static void readCallback(struct bufferevent *bev, void *user_data);
     static void writeCallback(struct bufferevent *bev, void *user_data);
     static void eventCallback(struct bufferevent *bev, short events, void *user_data);
 
 private:  // variable
+    pthread_t client_thread_id;
     struct event_base *client_base;
     
 private:  // static variable
