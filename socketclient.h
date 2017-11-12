@@ -30,6 +30,7 @@ public:
     int connectServer(const char *server);
     int connectServer(const char *server, unsigned int port);
     void disconnectServer(const char *server);
+    int sendData(const char *server, const void *data, size_t size);
     
 private:  // function
     int createThread(void);

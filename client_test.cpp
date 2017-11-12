@@ -1,15 +1,26 @@
 #include <unistd.h>
+#include <string.h>
 #include "socketclient.h"
 
 #include "event.h"
 
+SocketClient client;
+
 void timingSender(evutil_socket_t fd, short event, void *arg)
 {
     struct timeval tv = {2,0};
+    static int msg_num = 1;
+    char reply_msg[1000] = {'\0'};
     struct event *base = (struct event *)arg;
+    char *str = (char *)"I receive a message from server";
     
     printf("\nSend data timming.\n");
     evtimer_add(base, &tv);
+
+    memcpy(reply_msg, str, strlen(str));
+    sprintf(reply_msg + strlen(str), "%d", msg_num);
+    client.sendData("server", reply_msg, strlen(reply_msg));
+    msg_num++;
 }
 
 int main(void)
@@ -18,7 +29,6 @@ int main(void)
     struct timeval tv;
     struct event timeout;
     struct event_base *base;
-    SocketClient client;
     
     //ret = client.connectServer("/tmp/socket_test");
     ret = client.connectServer("127.0.0.1", 25000);

@@ -88,6 +88,16 @@ void SocketClient::disconnectServer(const char *server)
     deinitEventBase();
 }
 
+struct bufferevent *global_bev = NULL;
+
+int SocketClient::sendData(const char *server, const void *data, size_t size)
+{
+    if(global_bev)
+        return bufferevent_write(global_bev, data, size);
+    else
+        return -1;
+}
+
 int SocketClient::createThread(void)
 {
     if(pthread_create(&client_thread_id, NULL, clientEventThread, client_base) != 0)
@@ -159,7 +169,8 @@ int SocketClient::startConnect(struct sockaddr *s_addr, size_t s_len)
     }
 
     bufferevent_enable(bev , EV_READ|EV_WRITE);
-    
+
+    global_bev = bev;
     return 0;
 
 CONNECT_FAILED:
