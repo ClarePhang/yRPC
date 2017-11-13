@@ -4,7 +4,7 @@
 
 #include "event.h"
 
-SocketServer server;
+CommDriver comm_s;
 
 void timingSender(evutil_socket_t fd, short event, void *arg)
 {
@@ -19,7 +19,7 @@ void timingSender(evutil_socket_t fd, short event, void *arg)
 
     memcpy(reply_msg, str, strlen(str));
     sprintf(reply_msg + strlen(str), "%d", msg_num);
-    server.sendData("server", reply_msg, strlen(reply_msg));
+    comm_s.sendData("server", reply_msg, strlen(reply_msg));
     msg_num++;
 }
 
@@ -30,8 +30,8 @@ int main(void)
     struct event timeout;
     struct event_base *base;
     
-    //ret = server.serverCreate("/tmp/socket_test");
-    ret = server.serverCreate("127.0.0.1", 25000);
+    //ret = comm_s.createServer("/tmp/socket_test");
+    ret = comm_s.createServer("127.0.0.1", 25000);
     if(ret < 0)
     {
         printf("server create failed!\n");
@@ -39,11 +39,11 @@ int main(void)
     }
 
     sleep(4);
-    //ret = server.connectServer("/tmp/socket_test");
-    ret = server.connectServer("127.0.0.1", 25001);
+    //ret = comm_s.connectServer("/tmp/socket_test");
+    ret = comm_s.connectServer("127.0.0.1", 25001);
     if(ret < 0)
     {
-        printf("connect  server /tmp/socket_test failed!\n");
+        printf("connect /tmp/socket_test failed!\n");
         return -1;
     }
     

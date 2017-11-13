@@ -23,20 +23,20 @@
 
 enum SocketMethod{NOSOCKET,TCPSOCKET, LOCALSOCKET};
 
-class SocketServer : public SocketBaseOpt
+class CommDriver : public SocketBaseOpt
 {
 public:
-    SocketServer();
-    ~SocketServer();
+    CommDriver();
+    ~CommDriver();
 
 public: // interface
     void showVersion(void);
-    int serverCreate(const char *server);
-    int serverCreate(const char *server, unsigned int port);
-    void serverDestroy(void);
-    int connectServer(const char *server);
-    int connectServer(const char *server, unsigned int port);
-    void disconnectServer(const char *server);
+    int createServer(const char *path);
+    int createServer(const char *ip, unsigned int port);
+    void destroyServer(void);
+    int connectServer(const char *path);
+    int connectServer(const char *ip, unsigned int port);
+    void disconnectServer(const char *path_or_ip);
     int sendData(const char *server, const void *data, size_t size);
 
 private:  // function

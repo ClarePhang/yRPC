@@ -16,47 +16,47 @@
 
 #include "socketbase.h"
 
-int SocketBaseOpt::initSockaddr(struct sockaddr_un &s_addr, const char *server)
+int SocketBaseOpt::initSockaddr(struct sockaddr_un &s_addr, const char *path)
 {
-    if(server == NULL)
+    if(path == NULL)
     {
-        printf("SocketBase : server name can not be NULL.\n");
+        printf("SocketBase : path name can not be NULL.\n");
         return -1;
     }
 
-    unlink(server);
+    unlink(path);
     bzero(&s_addr, sizeof(struct sockaddr_un));
     s_addr.sun_family = AF_UNIX;
-    strcpy(s_addr.sun_path,server);
+    strcpy(s_addr.sun_path,path);
     
     return 0;
 }
 
-int SocketBaseOpt::initSockaddr(struct sockaddr_in &s_addr, const char *server, unsigned int port)
+int SocketBaseOpt::initSockaddr(struct sockaddr_in &s_addr, const char *ip, unsigned int port)
 {
     int result = -1;
 
-    if(server == NULL)
+    if(ip == NULL)
     {
-        printf("SocketBase : server name can not be NULL.\n");
+        printf("SocketBase : ip addr can not be NULL.\n");
         return -1;
     }
 
     bzero(&s_addr,sizeof(struct sockaddr_in));
     s_addr.sin_family = AF_INET;
     s_addr.sin_port   = htons(port);
-    if(strncasecmp(server,"INADDR_ANY",10) == 0)
+    if(strncasecmp(ip,"INADDR_ANY",10) == 0)
     {
-        printf("SocketBase : using INADDR_ANY:%d as server addr.\n",port);
+        printf("SocketBase : using INADDR_ANY:%d as ip addr.\n",port);
         s_addr.sin_addr.s_addr = INADDR_ANY;
     }
     else
     {
-        printf("SocketBase : using %s:%d as server addr.\n",server,port);
-        result = inet_aton(server,(struct in_addr *)&s_addr.sin_addr.s_addr);
+        printf("SocketBase : using %s:%d as ip addr.\n",ip,port);
+        result = inet_aton(ip,(struct in_addr *)&s_addr.sin_addr.s_addr);
         if(result == 0)
         {
-            printf("SocketBase : add server addr failed: %s\n",strerror(errno));
+            printf("SocketBase : add ip addr failed: %s\n",strerror(errno));
             return -1;
         }
     }

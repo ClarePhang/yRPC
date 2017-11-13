@@ -20,9 +20,9 @@
 
 #include "comm_driver.h"
 
-volatile SocketMethod SocketServer::socket_method = NOSOCKET;
+volatile SocketMethod CommDriver::socket_method = NOSOCKET;
 
-SocketServer::SocketServer()
+CommDriver::CommDriver()
 {
     init_flag = false;
     timing_check = NULL;
@@ -33,7 +33,7 @@ SocketServer::SocketServer()
     accept_thread_id = 0;
 }
 
-SocketServer::~SocketServer()
+CommDriver::~CommDriver()
 {
     init_flag = false;
     timing_check = NULL;
@@ -44,21 +44,21 @@ SocketServer::~SocketServer()
     accept_thread_id = 0;
 }
 
-void SocketServer::showVersion(void)
+void CommDriver::showVersion(void)
 {
     const char **a = event_get_supported_methods();
-    printf("Server : System supported methods:\n");
+    printf("CommDriver : System supported methods:\n");
     for(int i = 0; a[i] != NULL; i++)
         printf("  [%s]\n",a[i]);
     // use method:   notice
     // version
 }
 
-int SocketServer::serverCreate(const char *server)
+int CommDriver::createServer(const char *path)
 {
     struct sockaddr_un su_addr;
 
-    if(initSockaddr(su_addr, server) < 0)
+    if(initSockaddr(su_addr, path) < 0)
         goto CREATE_FAILED;
     
     if(initEventBase(listenerHandler, (struct sockaddr *)&su_addr, sizeof(su_addr)) < 0)
@@ -76,11 +76,11 @@ CREATE_FAILED:
     return -1;
 }
 
-int SocketServer::serverCreate(const char *server, unsigned int port)
+int CommDriver::createServer(const char *ip, unsigned int port)
 {
     struct sockaddr_in si_addr;
 
-    if(initSockaddr(si_addr, server, port) < 0)
+    if(initSockaddr(si_addr, ip, port) < 0)
         goto CREATE_FAILED;
 
     if(initEventBase(listenerHandler, (struct sockaddr *)&si_addr, sizeof(si_addr)) < 0)
@@ -98,17 +98,17 @@ CREATE_FAILED:
     return -1;
 }
 
-void SocketServer::serverDestroy(void)
+void CommDriver::destroyServer(void)
 {
     destroyThread();
     deinitEventBase();
 }
 
-int SocketServer::connectServer(const char *server)
+int CommDriver::connectServer(const char *path)
 {
     struct sockaddr_un su_addr;
 
-    if(initSockaddr(su_addr, server) < 0)
+    if(initSockaddr(su_addr, path) < 0)
         goto CONNECT_FAILED;
 
     if(startConnect((struct sockaddr *)&su_addr,sizeof(su_addr)) < 0)
@@ -123,11 +123,11 @@ CONNECT_FAILED:
     return -1;
 }
 
-int SocketServer::connectServer(const char *server, unsigned int port)
+int CommDriver::connectServer(const char *ip, unsigned int port)
 {
     struct sockaddr_in si_addr;
 
-    if(initSockaddr(si_addr, server, port) < 0)
+    if(initSockaddr(si_addr, ip, port) < 0)
         goto CONNECT_FAILED;
 
     if(startConnect((struct sockaddr *)&si_addr,sizeof(si_addr)) < 0)
@@ -142,14 +142,14 @@ CONNECT_FAILED:
     return -1;
 }
 
-void SocketServer::disconnectServer(const char *server)
+void CommDriver::disconnectServer(const char *path_or_ip)
 {
     return ;
 }
 
 /* for test  notice */
 struct bufferevent *global_bev = NULL;
-int SocketServer::sendData(const char *server, const void *data, size_t size)
+int CommDriver::sendData(const char *server, const void *data, size_t size)
 {
     if(global_bev)
         return bufferevent_write(global_bev, data, size);
@@ -157,18 +157,18 @@ int SocketServer::sendData(const char *server, const void *data, size_t size)
         return -1;
 }
 
-int SocketServer::createThread(void)
+int CommDriver::createThread(void)
 {
 //    int kill_comm = -1, kill_accept = -1;
     
     if(pthread_create(&comm_thread_id, NULL, commEventThread, comm_base) != 0)
 	{
-		printf("Server : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
+		printf("CommDriver : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
 		return -1;
 	}
     if(pthread_create(&accept_thread_id, NULL, acceptEventThread, accept_base) != 0)
 	{
-		printf("Server : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
+		printf("CommDriver : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
 		return -1;
 	}
 /*
@@ -190,7 +190,7 @@ int SocketServer::createThread(void)
     return 0;
 }
 
-void SocketServer::destroyThread(void)
+void CommDriver::destroyThread(void)
 {
     if(accept_thread_id != 0)
     {
@@ -209,7 +209,7 @@ void SocketServer::destroyThread(void)
 /*
  * para: s_addr can be a sockaddr_in or sockaddr_un, s_len is the length of it.
  */
-int SocketServer::initEventBase(evconnlistener_cb listener_cb, struct sockaddr *s_addr, size_t s_len)
+int CommDriver::initEventBase(evconnlistener_cb listener_cb, struct sockaddr *s_addr, size_t s_len)
 {
     // if env set, then open debug   notice
     event_enable_debug_mode();
@@ -220,14 +220,14 @@ int SocketServer::initEventBase(evconnlistener_cb listener_cb, struct sockaddr *
     comm_base = event_base_new();
     if(!comm_base)
     {
-        printf("Server : new communication_event_base failed!\n");
+        printf("CommDriver : new communication_event_base failed!\n");
         goto INIT_EVENT_FAILED;
     }
     
     accept_base = event_base_new();
     if(!accept_base)
     {
-        printf("Server : new accept_event_base failed!\n");
+        printf("CommDriver : new accept_event_base failed!\n");
         goto INIT_EVENT_FAILED;
     }
     
@@ -239,7 +239,7 @@ int SocketServer::initEventBase(evconnlistener_cb listener_cb, struct sockaddr *
         -1, s_addr, s_len);
     if(!listener)
     {
-        printf("Server : new event_listener failed!\n");
+        printf("CommDriver : new event_listener failed!\n");
         goto INIT_EVENT_FAILED;
     }
 
@@ -254,7 +254,7 @@ INIT_EVENT_FAILED:
     return -1;
 }
 
-void SocketServer::deinitEventBase(void)
+void CommDriver::deinitEventBase(void)
 {
     if(listener)
     {
@@ -273,7 +273,7 @@ void SocketServer::deinitEventBase(void)
     }
 }
 
-int SocketServer::initTimingCheckHandler(void)
+int CommDriver::initTimingCheckHandler(void)
 {
     struct timeval tv = {DEFAULT_CHECK_CYCLE, 0};
 
@@ -283,17 +283,17 @@ int SocketServer::initTimingCheckHandler(void)
     timing_check = (struct event *)malloc(sizeof(struct event));
     if(!timing_check)
     {
-        printf("Server : new timint check event failed!\n");
+        printf("CommDriver : new timint check event failed!\n");
         return -1;
     }
     if(evtimer_assign(timing_check, comm_base, timingCheckHandler, timing_check) < 0)
     {
-        printf("Server : new timint check event failed!\n");
+        printf("CommDriver : new timint check event failed!\n");
         goto INIT_TIMING_FAILED;
     }
     if(evtimer_add(timing_check, &tv) < 0)
     {
-        printf("Server : add timing check handler to comm_base failed!\n");
+        printf("CommDriver : add timing check handler to comm_base failed!\n");
         goto INIT_TIMING_FAILED;
     }
 
@@ -305,7 +305,7 @@ INIT_TIMING_FAILED:
     return -1;
 }
 
-void SocketServer::deinitTimingCheckHandler(void)
+void CommDriver::deinitTimingCheckHandler(void)
 {
     if(init_flag)
     {
@@ -319,7 +319,7 @@ void SocketServer::deinitTimingCheckHandler(void)
     }
 }
 
-int SocketServer::startConnect(struct sockaddr *s_addr, size_t s_len)
+int CommDriver::startConnect(struct sockaddr *s_addr, size_t s_len)
 {
     int result = -1;
     struct bufferevent *bev = NULL;
@@ -353,42 +353,42 @@ CONNECT_FAILED:
     return -1;
 }
 
-void *SocketServer::commEventThread(void *arg)
+void *CommDriver::commEventThread(void *arg)
 {
     struct event_base *base = (struct event_base *)arg;
     
-    printf("Server : communication event-loop id:%lu\n",pthread_self());
-    printf("Server : communication event-base addr = 0x%p\n",base);
+    printf("CommDriver : communication event-loop id:%lu\n",pthread_self());
+    printf("CommDriver : communication event-base addr = 0x%p\n",base);
     
     event_base_dispatch(base);
     
-    printf("Server : communication event-loop exit.\n");
+    printf("CommDriver : communication event-loop exit.\n");
     pthread_exit(NULL);
 }
 
-void *SocketServer::acceptEventThread(void *arg)
+void *CommDriver::acceptEventThread(void *arg)
 {
     struct event_base *base = (struct event_base *)arg;
     
-    printf("Server : accept event-loop id:%lu\n",pthread_self());
-    printf("Server : accept event-base addr = 0x%p\n",base);
+    printf("CommDriver : accept event-loop id:%lu\n",pthread_self());
+    printf("CommDriver : accept event-base addr = 0x%p\n",base);
     
     event_base_dispatch(base);
     
-    printf("Server : accept event-loop exit.\n");
+    printf("CommDriver : accept event-loop exit.\n");
     pthread_exit(NULL);
 }
 
-void SocketServer::timingCheckHandler(evutil_socket_t fd, short event, void *arg)
+void CommDriver::timingCheckHandler(evutil_socket_t fd, short event, void *arg)
 {
     struct timeval tv = {DEFAULT_CHECK_CYCLE,0};
     struct event *base = (struct event *)arg;
     
-    printf("\nServer : check network:%p\n",arg);
+    printf("\nCommDriver : check network:%p\n",arg);
     evtimer_add(base, &tv);
 }
 
-void SocketServer::listenerHandler(struct evconnlistener *listener, evutil_socket_t fd,
+void CommDriver::listenerHandler(struct evconnlistener *listener, evutil_socket_t fd,
                                    struct sockaddr *sa, int socklen, void *user_data)
 {
     struct bufferevent *bev = NULL;
@@ -397,23 +397,23 @@ void SocketServer::listenerHandler(struct evconnlistener *listener, evutil_socke
     switch(socket_method)
     {
         case TCPSOCKET:
-            printf("Server : New connecting from %s:%d\n",
+            printf("CommDriver : New connecting from %s:%d\n",
                    inet_ntoa(((sockaddr_in *)sa)->sin_addr),
                    ntohs(((sockaddr_in *)sa)->sin_port));
             break;
         case LOCALSOCKET:
-            printf("Server : New connecting from :%s\n", 
+            printf("CommDriver : New connecting from :%s\n", 
                 ((sockaddr_un *)sa)->sun_path);
             break;
         default:
-            printf("Server : New connecting error, not socket!\n");
+            printf("CommDriver : New connecting error, not socket!\n");
             return ;
     }
 
     bev = bufferevent_socket_new(base, fd, LEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
     if(!bev)
     {
-        printf("Server : Could not create new bufferevent!\n");
+        printf("CommDriver : Could not create new bufferevent!\n");
         return ;
     }
 
@@ -425,24 +425,24 @@ void SocketServer::listenerHandler(struct evconnlistener *listener, evutil_socke
     int ret = bufferevent_enable(bev, BEV_OPT_THREADSAFE);
     if(ret < 0)
     {
-        printf("Server : enable bufferevent BEV_OPT_THREADSAFE failed!\n");
+        printf("CommDriver : enable bufferevent BEV_OPT_THREADSAFE failed!\n");
         bufferevent_free(bev);
         return ;
     }
 
-    printf("Server : new bufferevent addr :%p\n",bev);
+    printf("CommDriver : new bufferevent addr :%p\n",bev);
     // set readcb, writecb and errcb
     bufferevent_setcb(bev, readCallback, writeCallback, eventCallback, NULL);
     bufferevent_enable(bev, EV_READ | EV_WRITE);
 }
 
-void SocketServer::readCallback(struct bufferevent *bev, void *user_data)
+void CommDriver::readCallback(struct bufferevent *bev, void *user_data)
 {
     struct evbuffer *input = bufferevent_get_input(bev);
     size_t sz = evbuffer_get_length(input);
     
-    printf("\nCOMM : readCallback thread: %lu\n",pthread_self());
-    printf("COMM : bufferevent addr :%p\n",bev);
+    printf("\nCommDriver : readCallback thread: %lu\n",pthread_self());
+    printf("CommDriver : bufferevent addr :%p\n",bev);
 
     if(sz > 0)
     {
@@ -450,70 +450,70 @@ void SocketServer::readCallback(struct bufferevent *bev, void *user_data)
         char msg[1024] = {'\0'};
         int readlen = 1024 > sz ? sz : 1024;
         bufferevent_read(bev, msg, readlen);
-        printf("COMM : recv %d, %s .\n",readlen, msg);
+        printf("CommDriver : recv %d, %s .\n",readlen, msg);
     }
 }
 
-void SocketServer::writeCallback(struct bufferevent *bev, void *user_data)
+void CommDriver::writeCallback(struct bufferevent *bev, void *user_data)
 {
     struct evbuffer *output = bufferevent_get_output(bev);
 
-    printf("\nCOMM : writeCallback thread: %lu\n",pthread_self());
-    printf("COMM : bufferevent addr :%p\n",bev);
+    printf("\nCommDriver : writeCallback thread: %lu\n",pthread_self());
+    printf("CommDriver : bufferevent addr :%p\n",bev);
     
     if(evbuffer_get_length(output) == 0)
     {
-        printf("COMM : Output evbuffer is flushed.\n");
+        printf("CommDriver : Output evbuffer is flushed.\n");
         return;
     }
 }
 
-void SocketServer::eventCallback(struct bufferevent *bev, short events, void *user_data)
+void CommDriver::eventCallback(struct bufferevent *bev, short events, void *user_data)
 {
-    printf("\nCOMM : eventCallback thread: %lu\n",pthread_self());
-    printf("COMM : bufferevent addr :%p\n",bev);
+    printf("\nCommDriver : eventCallback thread: %lu\n",pthread_self());
+    printf("CommDriver : bufferevent addr :%p\n",bev);
 
     if(events & BEV_EVENT_EOF)
     {
-        printf("COMM : Connection closed!\n");
+        printf("CommDriver : Connection closed!\n");
     }
     else if(events & BEV_EVENT_CONNECTED)
     {
-        printf("COMM : New connection finishi!\n");
+        printf("CommDriver : New connection finishi!\n");
         return ;  // normal condition
     }
     else if(events & BEV_EVENT_ERROR)
     {
-        printf("COMM : Got error on the connection:%s\n",strerror(errno));
-        //printf("COMM : Got error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        printf("CommDriver : Got error on the connection:%s\n",strerror(errno));
+        //printf("CommDriver : Got error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
     }
     else if(events & BEV_EVENT_TIMEOUT)
     {
         if(events & BEV_EVENT_READING)  // read timeout
         {
-            printf("COMM : read data from %p timeout!\n", bev);
+            printf("CommDriver : read data from %p timeout!\n", bev);
         }
         else if(events & BEV_EVENT_WRITING)
         {
-            printf("COMM : write data from %p timeout!\n", bev);
+            printf("CommDriver : write data from %p timeout!\n", bev);
         }
         // if timeout, event will disable read/write,so:
         if(!(bufferevent_get_enabled(bev) & EV_READ))
         {
-            printf("COMM : reenable %p readable.\n",bev);
+            printf("CommDriver : reenable %p readable.\n",bev);
             bufferevent_enable(bev, EV_READ);
         }
         if(!(bufferevent_get_enabled(bev) & EV_WRITE))
         {
-            printf("COMM : reenable %p writeable.\n",bev);
+            printf("CommDriver : reenable %p writeable.\n",bev);
             bufferevent_enable(bev, EV_WRITE);
         }
         return ;  // normal condition
     }
     else
     {
-        printf("COMM : Got unknown error on the connection:%s\n",strerror(errno));
-        //printf("COMM : Got unknown error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        printf("CommDriver : Got unknown error on the connection:%s\n",strerror(errno));
+        //printf("CommDriver : Got unknown error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
     }
 
     if(bev)
