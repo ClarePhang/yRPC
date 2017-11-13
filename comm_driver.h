@@ -31,12 +31,10 @@ public:
 
 public: // interface
     void showVersion(void);
-    int createServer(const char *path);
-    int createServer(const char *ip, unsigned int port);
+    int createServer(const char *server, unsigned int port);
     void destroyServer(void);
-    void *connectServer(const char *path);
     void *connectServer(const char *ip, unsigned int port);
-    void disconnectServer(const char *path_or_ip);
+    void disconnectServer(void *connect);
     int sendData(const void *server, const void *data, size_t size);
 
 private:  // function

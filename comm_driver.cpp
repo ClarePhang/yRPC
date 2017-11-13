@@ -54,44 +54,38 @@ void CommDriver::showVersion(void)
     // version
 }
 
-int CommDriver::createServer(const char *path)
+int CommDriver::createServer(const char *server, unsigned int port)
 {
+    int result = -1;
     struct sockaddr_un su_addr;
-
-    if(initSockaddr(su_addr, path) < 0)
-        goto CREATE_FAILED;
-    
-    if(initEventBase(listenerCallback, (struct sockaddr *)&su_addr, sizeof(su_addr)) < 0)
-        goto CREATE_FAILED;
-
-    if(createThread() < 0)
-        goto CREATE_FAILED;
-
-    socket_method = LOCALSOCKET;
-    return 0;
-    
-CREATE_FAILED:
-    destroyThread();
-    deinitEventBase();
-    return -1;
-}
-
-int CommDriver::createServer(const char *ip, unsigned int port)
-{
     struct sockaddr_in si_addr;
 
-    if(initSockaddr(si_addr, ip, port) < 0)
+    if(0 == port)
+    {
+        unlink(server);
+        result = initSockaddr(su_addr, server);
+    }
+    else
+        result = initSockaddr(si_addr, server, port);
+    if(result < 0)
         goto CREATE_FAILED;
 
-    if(initEventBase(listenerCallback, (struct sockaddr *)&si_addr, sizeof(si_addr)) < 0)
+    if(0 == port)
+        result = initEventBase(listenerCallback, (struct sockaddr *)&su_addr, sizeof(su_addr));
+    else
+        result = initEventBase(listenerCallback, (struct sockaddr *)&si_addr, sizeof(si_addr));
+    if(result < 0)
         goto CREATE_FAILED;
 
     if(createThread() < 0)
         goto CREATE_FAILED;
 
-    socket_method = TCPSOCKET;
+    if(0 == port)
+        socket_method = LOCALSOCKET;
+    else
+        socket_method = TCPSOCKET;
     return 0;
-    
+
 CREATE_FAILED:
     destroyThread();
     deinitEventBase();
@@ -104,51 +98,34 @@ void CommDriver::destroyServer(void)
     deinitEventBase();
 }
 
-void *CommDriver::connectServer(const char *path)
+void *CommDriver::connectServer(const char *server, unsigned int port)
 {
+    int ret = -1;
     void *result = NULL;
     struct sockaddr_un su_addr;
-
-    if(initSockaddr(su_addr, path) < 0)
-        goto CONNECT_FAILED;
-
-    result = startConnect((struct sockaddr *)&su_addr,sizeof(su_addr));
-    if(result == NULL)
-        goto CONNECT_FAILED;
-
-    socket_method = LOCALSOCKET;
-
-    return result;
-
-CONNECT_FAILED:
-    deinitEventBase();
-    return NULL;
-}
-
-void *CommDriver::connectServer(const char *ip, unsigned int port)
-{
-    void *result = NULL;
     struct sockaddr_in si_addr;
 
-    if(initSockaddr(si_addr, ip, port) < 0)
-        goto CONNECT_FAILED;
+    if(0 == port)
+        ret = initSockaddr(su_addr, server);
+    else
+        ret = initSockaddr(si_addr, server, port);
+    if(ret < 0)
+        return result;
 
-    result = startConnect((struct sockaddr *)&si_addr,sizeof(si_addr));
-    if(result == NULL)
-        goto CONNECT_FAILED;
+    if(0 == port)
+        result = startConnect((struct sockaddr *)&su_addr,sizeof(su_addr));
+    else
+        result = startConnect((struct sockaddr *)&si_addr,sizeof(si_addr));
 
-    socket_method = TCPSOCKET;
-
+    printf("bev = %p\n",result);
     return result;
-    
-CONNECT_FAILED:
-    deinitEventBase();
-    return NULL;
 }
 
-void CommDriver::disconnectServer(const char *path_or_ip)
+void CommDriver::disconnectServer(void *connect)
 {
-    return ;
+    struct bufferevent *bev = (struct bufferevent *)connect;
+    if(bev)
+        bufferevent_free(bev);
 }
 
 /* for test  notice */
@@ -432,10 +409,11 @@ void CommDriver::listenerCallback(struct evconnlistener *listener, evutil_socket
         return ;
     }
 
-    printf("CommDriver : new bufferevent addr :%p\n",bev);
+    //printf("CommDriver : new bufferevent addr :%p\n",bev);
     // set readcb, writecb and errcb
     bufferevent_setcb(bev, readCallback, writeCallback, eventCallback, NULL);
     bufferevent_enable(bev, EV_READ | EV_WRITE);
+    
 }
 
 void CommDriver::readCallback(struct bufferevent *bev, void *user_data)
@@ -460,12 +438,12 @@ void CommDriver::writeCallback(struct bufferevent *bev, void *user_data)
 {
     struct evbuffer *output = bufferevent_get_output(bev);
 
-    printf("\nCommDriver : writeCallback thread: %lu\n",pthread_self());
-    printf("CommDriver : bufferevent addr :%p\n",bev);
+    //printf("\nCommDriver : writeCallback thread: %lu\n",pthread_self());
+    //printf("CommDriver : bufferevent addr :%p\n",bev);
     
     if(evbuffer_get_length(output) == 0)
     {
-        printf("CommDriver : Output evbuffer is flushed.\n");
+        //printf("CommDriver : Output evbuffer is flushed.\n");
         return;
     }
 }
