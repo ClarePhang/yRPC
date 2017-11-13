@@ -31,7 +31,7 @@ int main(void)
     struct event timeout;
     struct event_base *base;
     
-    //ret = comm_s.createServer("/tmp/socket_test");
+    //ret = comm_s.createServer("/tmp/socket_test",0);
     ret = comm_s.createServer("127.0.0.1", 25000);
     if(ret < 0)
     {
@@ -40,8 +40,8 @@ int main(void)
     }
 
     sleep(4);
-    //ret = comm_s.connectServer("/tmp/socket_test");
-    server_ptr = comm_s.connectServer("127.0.0.1", 25001);
+    server_ptr = comm_s.connectServer("/tmp/socket_test",0);
+    //server_ptr = comm_s.connectServer("127.0.0.1", 25001);
     if(server_ptr == NULL)
     {
         printf("connect /tmp/socket_test failed!\n");

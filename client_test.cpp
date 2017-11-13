@@ -31,8 +31,8 @@ int main(void)
     struct event timeout;
     struct event_base *base;
 
-    //ret = comm_c.createServer("/tmp/socket_test"); 
-    ret = comm_c.createServer("127.0.0.1", 25001);
+    ret = comm_c.createServer("/tmp/socket_test", 0); 
+    //ret = comm_c.createServer("127.0.0.1", 25001);
     if(ret < 0)
     {
         printf("client create failed!\n");
