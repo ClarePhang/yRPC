@@ -5,6 +5,7 @@
 #include "event.h"
 
 CommDriver comm_s;
+void * server_ptr = NULL;
 
 void timingSender(evutil_socket_t fd, short event, void *arg)
 {
@@ -19,7 +20,7 @@ void timingSender(evutil_socket_t fd, short event, void *arg)
 
     memcpy(reply_msg, str, strlen(str));
     sprintf(reply_msg + strlen(str), "%d", msg_num);
-    comm_s.sendData("server", reply_msg, strlen(reply_msg));
+    comm_s.sendData(server_ptr, reply_msg, strlen(reply_msg));
     msg_num++;
 }
 
@@ -40,8 +41,8 @@ int main(void)
 
     sleep(4);
     //ret = comm_s.connectServer("/tmp/socket_test");
-    ret = comm_s.connectServer("127.0.0.1", 25001);
-    if(ret < 0)
+    server_ptr = comm_s.connectServer("127.0.0.1", 25001);
+    if(server_ptr == NULL)
     {
         printf("connect /tmp/socket_test failed!\n");
         return -1;

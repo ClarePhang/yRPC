@@ -34,25 +34,25 @@ public: // interface
     int createServer(const char *path);
     int createServer(const char *ip, unsigned int port);
     void destroyServer(void);
-    int connectServer(const char *path);
-    int connectServer(const char *ip, unsigned int port);
+    void *connectServer(const char *path);
+    void *connectServer(const char *ip, unsigned int port);
     void disconnectServer(const char *path_or_ip);
-    int sendData(const char *server, const void *data, size_t size);
+    int sendData(const void *server, const void *data, size_t size);
 
 private:  // function
     int createThread(void);
     void destroyThread(void);
     int initEventBase(evconnlistener_cb listener_cb, struct sockaddr *s_addr, size_t s_len);
     void deinitEventBase(void);
-    int initTimingCheckHandler(void);
-    void deinitTimingCheckHandler(void);
-    int startConnect(struct sockaddr *s_addr, size_t s_len);
+    int initTimingCheckCallback(void);
+    void deinitTimingCheckCallback(void);
+    void *startConnect(struct sockaddr *s_addr, size_t s_len);
 
 private:  // static function
     static void *commEventThread(void *arg);
     static void *acceptEventThread(void *arg);
-    static void timingCheckHandler(evutil_socket_t fd, short event, void *arg);
-    static void listenerHandler(struct evconnlistener *listener, evutil_socket_t fd,
+    static void timingCheckCallback(evutil_socket_t fd, short event, void *arg);
+    static void listenerCallback(struct evconnlistener *listener, evutil_socket_t fd,
                                 struct sockaddr *sa, int socklen, void *user_data);
     static void readCallback(struct bufferevent *bev, void *user_data);
     static void writeCallback(struct bufferevent *bev, void *user_data);

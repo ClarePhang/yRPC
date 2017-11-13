@@ -61,7 +61,7 @@ int CommDriver::createServer(const char *path)
     if(initSockaddr(su_addr, path) < 0)
         goto CREATE_FAILED;
     
-    if(initEventBase(listenerHandler, (struct sockaddr *)&su_addr, sizeof(su_addr)) < 0)
+    if(initEventBase(listenerCallback, (struct sockaddr *)&su_addr, sizeof(su_addr)) < 0)
         goto CREATE_FAILED;
 
     if(createThread() < 0)
@@ -83,7 +83,7 @@ int CommDriver::createServer(const char *ip, unsigned int port)
     if(initSockaddr(si_addr, ip, port) < 0)
         goto CREATE_FAILED;
 
-    if(initEventBase(listenerHandler, (struct sockaddr *)&si_addr, sizeof(si_addr)) < 0)
+    if(initEventBase(listenerCallback, (struct sockaddr *)&si_addr, sizeof(si_addr)) < 0)
         goto CREATE_FAILED;
 
     if(createThread() < 0)
@@ -104,42 +104,46 @@ void CommDriver::destroyServer(void)
     deinitEventBase();
 }
 
-int CommDriver::connectServer(const char *path)
+void *CommDriver::connectServer(const char *path)
 {
+    void *result = NULL;
     struct sockaddr_un su_addr;
 
     if(initSockaddr(su_addr, path) < 0)
         goto CONNECT_FAILED;
 
-    if(startConnect((struct sockaddr *)&su_addr,sizeof(su_addr)) < 0)
+    result = startConnect((struct sockaddr *)&su_addr,sizeof(su_addr));
+    if(result == NULL)
         goto CONNECT_FAILED;
 
     socket_method = LOCALSOCKET;
 
-    return 0;
+    return result;
 
 CONNECT_FAILED:
     deinitEventBase();
-    return -1;
+    return NULL;
 }
 
-int CommDriver::connectServer(const char *ip, unsigned int port)
+void *CommDriver::connectServer(const char *ip, unsigned int port)
 {
+    void *result = NULL;
     struct sockaddr_in si_addr;
 
     if(initSockaddr(si_addr, ip, port) < 0)
         goto CONNECT_FAILED;
 
-    if(startConnect((struct sockaddr *)&si_addr,sizeof(si_addr)) < 0)
+    result = startConnect((struct sockaddr *)&si_addr,sizeof(si_addr));
+    if(result == NULL)
         goto CONNECT_FAILED;
 
     socket_method = TCPSOCKET;
 
-    return 0;
+    return result;
     
 CONNECT_FAILED:
     deinitEventBase();
-    return -1;
+    return NULL;
 }
 
 void CommDriver::disconnectServer(const char *path_or_ip)
@@ -148,13 +152,14 @@ void CommDriver::disconnectServer(const char *path_or_ip)
 }
 
 /* for test  notice */
-struct bufferevent *global_bev = NULL;
-int CommDriver::sendData(const char *server, const void *data, size_t size)
+int CommDriver::sendData(const void *server, const void *data, size_t size)
 {
-    if(global_bev)
-        return bufferevent_write(global_bev, data, size);
-    else
-        return -1;
+    struct bufferevent * server_ptr = (struct bufferevent *)server;
+    
+    if(server_ptr)
+        return bufferevent_write(server_ptr, data, size);
+
+    return -1;
 }
 
 int CommDriver::createThread(void)
@@ -243,13 +248,13 @@ int CommDriver::initEventBase(evconnlistener_cb listener_cb, struct sockaddr *s_
         goto INIT_EVENT_FAILED;
     }
 
-    if(initTimingCheckHandler() < 0)
+    if(initTimingCheckCallback() < 0)
         goto INIT_EVENT_FAILED;
     
     return 0;
     
 INIT_EVENT_FAILED:
-    deinitTimingCheckHandler();
+    deinitTimingCheckCallback();
     deinitEventBase();
     return -1;
 }
@@ -273,7 +278,7 @@ void CommDriver::deinitEventBase(void)
     }
 }
 
-int CommDriver::initTimingCheckHandler(void)
+int CommDriver::initTimingCheckCallback(void)
 {
     struct timeval tv = {DEFAULT_CHECK_CYCLE, 0};
 
@@ -286,7 +291,7 @@ int CommDriver::initTimingCheckHandler(void)
         printf("CommDriver : new timint check event failed!\n");
         return -1;
     }
-    if(evtimer_assign(timing_check, comm_base, timingCheckHandler, timing_check) < 0)
+    if(evtimer_assign(timing_check, comm_base, timingCheckCallback, timing_check) < 0)
     {
         printf("CommDriver : new timint check event failed!\n");
         goto INIT_TIMING_FAILED;
@@ -301,11 +306,11 @@ int CommDriver::initTimingCheckHandler(void)
     return 0;
     
 INIT_TIMING_FAILED:
-    deinitTimingCheckHandler();
+    deinitTimingCheckCallback();
     return -1;
 }
 
-void CommDriver::deinitTimingCheckHandler(void)
+void CommDriver::deinitTimingCheckCallback(void)
 {
     if(init_flag)
     {
@@ -319,7 +324,7 @@ void CommDriver::deinitTimingCheckHandler(void)
     }
 }
 
-int CommDriver::startConnect(struct sockaddr *s_addr, size_t s_len)
+void *CommDriver::startConnect(struct sockaddr *s_addr, size_t s_len)
 {
     int result = -1;
     struct bufferevent *bev = NULL;
@@ -344,13 +349,10 @@ int CommDriver::startConnect(struct sockaddr *s_addr, size_t s_len)
 
     bufferevent_enable(bev , EV_READ|EV_WRITE);
 
-    global_bev = bev;
-    return 0;
+    return (void *)bev;
 
 CONNECT_FAILED:
-//    if(bev)
-        //bufferevent_free(bev);
-    return -1;
+    return NULL;
 }
 
 void *CommDriver::commEventThread(void *arg)
@@ -379,7 +381,7 @@ void *CommDriver::acceptEventThread(void *arg)
     pthread_exit(NULL);
 }
 
-void CommDriver::timingCheckHandler(evutil_socket_t fd, short event, void *arg)
+void CommDriver::timingCheckCallback(evutil_socket_t fd, short event, void *arg)
 {
     struct timeval tv = {DEFAULT_CHECK_CYCLE,0};
     struct event *base = (struct event *)arg;
@@ -388,7 +390,7 @@ void CommDriver::timingCheckHandler(evutil_socket_t fd, short event, void *arg)
     evtimer_add(base, &tv);
 }
 
-void CommDriver::listenerHandler(struct evconnlistener *listener, evutil_socket_t fd,
+void CommDriver::listenerCallback(struct evconnlistener *listener, evutil_socket_t fd,
                                    struct sockaddr *sa, int socklen, void *user_data)
 {
     struct bufferevent *bev = NULL;
