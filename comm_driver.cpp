@@ -12,11 +12,10 @@
 #include <string.h>
 #include <pthread.h>
 #include <sys/un.h>
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-
-//#include <signal.h>
 
 #include "comm_driver.h"
 
@@ -141,8 +140,6 @@ int CommDriver::sendData(const void *server, const void *data, size_t size)
 
 int CommDriver::createThread(void)
 {
-//    int kill_comm = -1, kill_accept = -1;
-    
     if(pthread_create(&comm_thread_id, NULL, commEventThread, comm_base) != 0)
 	{
 		printf("CommDriver : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
@@ -153,22 +150,11 @@ int CommDriver::createThread(void)
 		printf("CommDriver : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
 		return -1;
 	}
-/*
+
     //wait thead running
-    while(true)
-    {
-//        #include <signal.h>
-        int pthread_kill(pthread_t thread, int sig);
-        usleep(2*1000);
-        kill_comm = pthread_kill(comm_thread_id, 0);
-        kill_accept = pthread_kill(accept_thread_id, 0);
-        if((ESRCH != kill_comm) && (EINVAL != kill_comm) &&
-           (ESRCH != kill_accept) && (EINVAL != kill_accept))
-           break;
-        else
-            printf("Thread has not running.\n");
-    }
-*/
+    waitThreadRun(comm_thread_id);
+    waitThreadRun(accept_thread_id);
+    
     return 0;
 }
 
@@ -381,7 +367,7 @@ void CommDriver::listenerCallback(struct evconnlistener *listener, evutil_socket
                    ntohs(((sockaddr_in *)sa)->sin_port));
             break;
         case LOCALSOCKET:
-            printf("CommDriver : New connecting from :%s\n", 
+            printf("CommDriver : New connecting from local:%s\n", 
                 ((sockaddr_un *)sa)->sun_path);
             break;
         default:
