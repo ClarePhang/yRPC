@@ -38,6 +38,8 @@ int RPCList::insert(void *addr)
 {
     rpc_list.push_back(addr);
 //    rpc_list.push_front(addr);
+//    rpc_list.insert(rpc_list.begin(), addr);
+//    rpc_list.insert(rpc_list.end(), addr);
     return 0;
 }
 
