@@ -8,6 +8,16 @@
      
 #include "rpc_list.h"
 
+RPCList::RPCList()
+{
+    rpc_list.clear();
+}
+
+RPCList::~RPCList()
+{
+    rpc_list.clear();
+}
+
 int RPCList::size(void)
 {
     return rpc_list.size();

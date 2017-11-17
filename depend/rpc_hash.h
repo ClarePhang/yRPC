@@ -16,8 +16,8 @@ typedef map<string, void *>RPC_MAP;
 class RPCHash
 {
 public:
-    RPCHash(){};
-    ~RPCHash(){};
+    RPCHash();
+    ~RPCHash();
 
 public:
     void print(void);

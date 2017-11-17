@@ -14,8 +14,8 @@ using namespace std;
 class RPCList
 {
 public:
-    RPCList() {};
-    ~RPCList() {};
+    RPCList();
+    ~RPCList();
 
     int size(void);
     void clear(void);

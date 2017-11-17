@@ -8,6 +8,16 @@
 
 #include "rpc_hash.h"
 
+RPCHash::RPCHash()
+{
+    rpc_map.clear();
+}
+
+RPCHash::~RPCHash()
+{
+    rpc_map.clear();
+}
+
 void RPCHash::print(void)
 {
     printf("Hash Table:\n");
