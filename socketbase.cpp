@@ -64,18 +64,3 @@ int SocketBaseOpt::initSockaddr(struct sockaddr_in &s_addr, const char *ip, unsi
     return 0;
 }
 
-int SocketBaseOpt::waitThreadRun(pthread_t &id)
-{
-    int result = -1;
-    
-    //wait thead running
-    while(true)
-    {
-        usleep(300);
-        result = pthread_kill(id, 0);
-        if((ESRCH != result) && (EINVAL != result))
-           break;
-    }
-    return 0;
-}
-

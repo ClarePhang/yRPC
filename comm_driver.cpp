@@ -151,10 +151,6 @@ int CommDriver::createThread(void)
 		return -1;
 	}
 
-    //wait thead running
-    waitThreadRun(comm_thread_id);
-    waitThreadRun(accept_thread_id);
-    
     return 0;
 }
 
@@ -399,7 +395,6 @@ void CommDriver::listenerCallback(struct evconnlistener *listener, evutil_socket
     // set readcb, writecb and errcb
     bufferevent_setcb(bev, readCallback, writeCallback, eventCallback, NULL);
     bufferevent_enable(bev, EV_READ | EV_WRITE);
-    
 }
 
 void CommDriver::readCallback(struct bufferevent *bev, void *user_data)
