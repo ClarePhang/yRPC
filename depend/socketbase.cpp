@@ -25,6 +25,7 @@ int SocketBaseOpt::initSockaddr(struct sockaddr_un &s_addr, const char *path)
         return -1;
     }
 
+    printf("SocketBase : using %s as localsocket addr.\n", path);
     bzero(&s_addr, sizeof(struct sockaddr_un));
     s_addr.sun_family = AF_UNIX;
     strcpy(s_addr.sun_path,path);
