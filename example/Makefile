@@ -12,3 +12,4 @@ all:
 	g++ list_test.cpp -o list_test $(INC) $(LIB) -Wall
 	g++ server_test.cpp -o server $(INC) $(LIB) -Wall
 	g++ client_test.cpp -o client $(INC) $(LIB) -Wall
+	g++ thread_test.cpp -o thread $(INC) $(LIB) -Wall
