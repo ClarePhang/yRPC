@@ -37,8 +37,8 @@ public:
 public:
     void showVersion(void);  // show third software version
     void showMethods(void);  // show the way to deal with file description
-    void changeCommTime(struct timeval &tv);
-    void changeCheckTime(struct timeval &tv);
+    void setCommTime(struct timeval &tv);
+    void setCheckTime(struct timeval &tv);
 
 public:
     int create(EventHandler handler, struct sockaddr *s_addr, size_t s_len);

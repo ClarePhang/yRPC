@@ -42,7 +42,7 @@ int event_handler(unsigned int type, void *fd_ptr, void *data, size_t data_len)
         case RPCEventRecv:
             printf("test: RPCEventRecv, %p\n", fd_ptr);
             printf("CommDriver : recv %lu, %s .\n",data_len, (char *)data);
-            rpc_communication.changeCommTime(tv);
+            rpc_communication.setCommTime(tv);
             break;
             
         case RPCEventSend:

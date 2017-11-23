@@ -76,7 +76,7 @@ void RPCComm::showMethods(void)
     RPC_INFO("RPCCOMM : now we use %s\n",event_base_get_method(accept_base));
 }
 
-void RPCComm::changeCommTime(struct timeval &tv)
+void RPCComm::setCommTime(struct timeval &tv)
 {
     if((tv.tv_sec == 0) && (tv.tv_usec == 0))
     {
@@ -90,7 +90,7 @@ void RPCComm::changeCommTime(struct timeval &tv)
     }
 }
 
-void RPCComm::changeCheckTime(struct timeval &tv)
+void RPCComm::setCheckTime(struct timeval &tv)
 {
     if((tv.tv_sec == 0) && (tv.tv_usec == 0))
     {
