@@ -299,14 +299,12 @@ void *ThreadPool::fixThreadRoutine(void *arg)
         pthread_mutex_unlock(&thread_mutex);
 
         // change thread high priority
-        setThreadPriority(51);
         if(worker->routine)
             (*(worker->routine))(worker->arg);
         if(worker->arg)
             free(arg);
         free(worker);
         worker =NULL;
-        setThreadPriority(49);
         // change thread normal priority
     }
     
