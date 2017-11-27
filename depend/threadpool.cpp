@@ -96,10 +96,13 @@ int ThreadPool::create(int fix_thread_num, int dyn_thread_num, int max_queue_siz
     this->fix_thread_size = fix_thread_num;
     this->max_thread_size = fix_thread_num + dyn_thread_num;
 
-    if(pthread_create(&manager_id, NULL, threadpoolManager, NULL) != 0)
+    if(dyn_thread_num != 0)
     {
-        TDP_ERROR("ThreadPool : %s: pthread_create failed, errno:%d,error:%s.\n", __FUNCTION__, errno, strerror(errno));
-        goto CREATE_FAILED;
+        if(pthread_create(&manager_id, NULL, threadpoolManager, NULL) != 0)
+        {
+            TDP_ERROR("ThreadPool : %s: pthread_create failed, errno:%d,error:%s.\n", __FUNCTION__, errno, strerror(errno));
+            goto CREATE_FAILED;
+        }
     }
     
     for(i = 0; i < fix_thread_size; i++)
