@@ -1,3 +1,3 @@
 [submodule "inifile2"]
-	path = inifile2
+	path = ./third_repo/inifile2
 	url = git@github.com:AaronKonishi/inifile2.git
