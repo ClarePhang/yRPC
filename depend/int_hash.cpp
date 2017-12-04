@@ -40,13 +40,13 @@ bool INTHash::empty(void)
     return int_map.empty();
 }
 
-void *INTHash::find(int &key)
+void *INTHash::find(unsigned int &key)
 {
     it = int_map.find(key);
     return (it == int_map.end()) ? NULL : it->second;
 }
 
-int INTHash::remove(int &key)
+int INTHash::remove(unsigned int &key)
 {
     it = int_map.find(key);
     if(it == int_map.end())
@@ -55,7 +55,7 @@ int INTHash::remove(int &key)
     return 0;
 }
 
-int INTHash::insert(int &key, void *value)
+int INTHash::insert(unsigned int &key, void *value)
 {
     it = int_map.find(key);
     if(it != int_map.end()) // exsit
@@ -66,7 +66,7 @@ int INTHash::insert(int &key, void *value)
     return 0;
 }
 
-int INTHash::change(int &key, void *value)
+int INTHash::change(unsigned int &key, void *value)
 {
     it = int_map.find(key);
     if(it == int_map.end()) // not exsit

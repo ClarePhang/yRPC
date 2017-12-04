@@ -11,7 +11,7 @@
 #include <string>
 
 using namespace std;
-typedef map<int, void *>INT_MAP;
+typedef map<unsigned int, void *>INT_MAP;
 
 class INTHash
 {
@@ -24,10 +24,10 @@ public:
     int size(void);
     void clear(void);
     bool empty(void);
-    void *find(int &key);
-    int remove(int &key);
-    int insert(int &key, void *value);
-    int change(int &key, void *value);
+    void *find(unsigned int &key);
+    int remove(unsigned int &key);
+    int insert(unsigned int &key, void *value);
+    int change(unsigned int &key, void *value);
 
 private:
     INT_MAP int_map;
