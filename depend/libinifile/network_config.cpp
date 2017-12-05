@@ -36,10 +36,14 @@ int NetworkConfig::setConfigProfile(const string &path)
     }
     
     ret = m_inifile.load(path);
-    if(ret == 0)
-        path_init = true;
-    else
+    if(ret != 0)
+    {
         path_init = false;
+        NM_ERROR("NetworkConfig : load %s config-file failed!\n", path.c_str());
+        return -1;
+    }
+    
+    path_init = true;
 
     if(!m_inifile.hasKey(GLOBALSECTION, string(COMMTIMEOUTKEY)))
     {
