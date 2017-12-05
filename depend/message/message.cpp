@@ -13,6 +13,16 @@
 #define MSG_WARN    printf
 #define MSG_ERROR   printf
 
+#define tp_tpaddtp(tvp, tpp, ttp)					\
+	do {								\
+		(ttp)->tv_sec = (tvp)->tv_sec + (tpp)->tv_sec;		\
+		(ttp)->tv_nsec = (tvp)->tv_nsec + (tpp)->tv_nsec;       \
+		if ((ttp)->tv_nsec >= 1000000000) {			\
+			(ttp)->tv_sec++;				\
+			(ttp)->tv_nsec -= 1000000000;			\
+		}							\
+	} while (0)
+
 static int checkMessageType(MESSAGE_TYPE mt)
 {
     if((mt <= MT_MIN_PK) || (mt >=MT_MAX_PK))
@@ -28,32 +38,91 @@ static int checkSerializeType(SERIALIZE_TYPE st)
     return 0;
 }
 
-int getHeadFromData(MessageStr &head, const char *data)
+void initMessage(MessageStr &msg)
+{
+    msg.magic = MESSAGE_MAGIC_NUM;
+    msg.head_size = MESSAGE_HEAD_SIZE;
+    msg.version = MESSAGE_MAJOR_VERSION<<4 | MESSAGE_MINOR_VERSION;
+    msg.message_type = MT_LINK_PK; // maybe not the same
+    msg.serialize_type = ST_BIN_BD; // maybe not the same
+    msg.one_way = false; // need ack, maybe not
+    msg.response = false;  // request, maybe not
+    msg.timesp.tv_sec = 0;
+    msg.timesp.tv_nsec = 0;
+    msg.status_code = 0;
+    msg.message_id = 0;
+    msg.body_size = 0;
+}
+
+void setMessageType(MessageStr &msg, MESSAGE_TYPE type)
+{
+    msg.message_type = type;
+}
+
+void setSerializeType(MessageStr &msg, SERIALIZE_TYPE type)
+{
+    msg.serialize_type = type;
+}
+
+void setOnewayFlag(MessageStr &msg, bool flag)
+{
+    msg.one_way = flag;
+}
+
+void setResponseFlag(MessageStr &msg, bool flag)
+{
+    msg.response = flag;
+}
+
+void setTimeout(MessageStr &msg, struct timespec &tv)
+{
+    struct timespec tp;
+    clock_gettime(CLOCK_REALTIME,&tp);
+    tp_tpaddtp(&tv, &tp, &tv);
+    msg.timesp = tv;
+}
+
+void setStatusCode(MessageStr &msg, unsigned int code)
+{
+    msg.status_code = code;
+}
+
+void setMessageID(MessageStr &msg, unsigned int id)
+{
+    msg.message_id = id;
+}
+
+void setBodyData(MessageStr &msg, void *data, unsigned int size)
+{
+    msg.body_size = size;
+    msg.body_data = data;
+}
+
+int getHeadFromData(MessageStr &head, const void *data)
 {
     unsigned char *ptr = (unsigned char *)data;
     
-    head.magic = getUnsignedIntData(ptr);
-    head.version = getUnsignedSIntData(ptr + 4);
-    head.head_size = getUnsignedSIntData(ptr + 6);
-    
-    head.message_type = getMESSAGETYPE(ptr[8]);
-    head.serialize_type = getSERIALIZETYPE(ptr[8]);
-    
-    if(getONEWAYSTATUS(ptr[9]))
+    head.magic     = getUnsignedShortData(ptr);
+    head.head_size = getUnsignedShortData(ptr + 2);
+    head.version = ptr[4];
+    head.message_type = getMESSAGETYPE(ptr[5]);
+    head.serialize_type = getSERIALIZETYPE(ptr[5]);
+
+    if(getONEWAYSTATUS(ptr[6]))
         head.one_way = true;
     else
         head.one_way = false;
-    if(getRESPONSESTATUS(ptr[9]))
+    if(getRESPONSESTATUS(ptr[6]))
         head.response = true;
     else
         head.response = false;
     
-    head.timeout.tv_sec = (ptr[9]&0x3F)<<8 | ptr[10]>>2;
-    head.timeout.tv_usec = (ptr[10]&0x3)<<8 | ptr[11];
+    head.timesp.tv_sec = (ptr[7]<<4) | ((ptr[8]&0xF0)>>4);
+    head.timesp.tv_nsec = ((ptr[8]&0xF)<<8) | ptr[9];
     
-    head.status_code = getUnsignedIntData(ptr + 12);
-//    memcpy(head.Reserved, &ptr[16], 8);
-    head.message_id = getUnsignedIntData(ptr + 24);
+    head.status_code = getUnsignedShortData(ptr + 10);
+    head.message_id = getUnsignedIntData(ptr + 12);
+//    memcpy(head.Reserved, &ptr[16], 12);
     head.body_size = getUnsignedIntData(ptr + 28);
     
     if(MESSAGE_MAGIC_NUM != head.magic)
@@ -62,8 +131,8 @@ int getHeadFromData(MessageStr &head, const char *data)
         return -1;
     }
 
-    if((MESSAGE_MAJOR_VERSION != ((head.version >> 8) & 0xFF)) ||
-       (MESSAGE_MINOR_VERSION != (head.version & 0xFF)))
+    if((MESSAGE_MAJOR_VERSION != ((head.version>>4) & 0xF)) ||
+       (MESSAGE_MINOR_VERSION != (head.version & 0xF)))
     {
         MSG_ERROR("Message : version does't match!\n");
         return -1;
@@ -86,7 +155,36 @@ int getHeadFromData(MessageStr &head, const char *data)
         MSG_ERROR("Message : serialize type does't fit the bill!\n");
         return -1;
     }
-    
+
     return  0;
+}
+
+int getDataFromHead(const void *data, MessageStr &head)
+{
+    unsigned char *ptr = (unsigned char *)data;
+
+    ptr[0] = (head.magic>>8) & 0xFF;
+    ptr[1] = head.magic & 0xFF;
+    ptr[2] = (head.head_size>>8) & 0xFF;
+    ptr[3] = head.head_size & 0xFF;
+    ptr[4] = head.version;
+    ptr[5] = head.message_type<<4 | head.serialize_type;
+    ptr[6] = (head.one_way<<7 | head.response<<6) & 0xC0;
+    ptr[7] = (head.timesp.tv_sec>>4) & 0xFF;
+    ptr[8] = (head.timesp.tv_sec<<4 & 0xF0) | (head.timesp.tv_nsec>>8 & 0xF);
+    ptr[9] = head.timesp.tv_nsec & 0xFF;
+    ptr[10] = (head.status_code>>8) & 0xFF;
+    ptr[11] = head.status_code & 0xFF;
+    ptr[12] = (head.message_id>>24) & 0xFF;
+    ptr[13] = (head.message_id>>16) & 0xFF;
+    ptr[14] = (head.message_id>>8) & 0xFF;
+    ptr[15] = head.message_id & 0xFF;
+//    memcpy(&ptr[16], head.Reserved, 12);
+    ptr[28] = (head.body_size>>24) & 0xFF;
+    ptr[29] = (head.body_size>>16) & 0xFF;
+    ptr[30] = (head.body_size>>8) & 0xFF;
+    ptr[31] = head.body_size & 0xFF;
+
+    return 0;
 }
 

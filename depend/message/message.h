@@ -6,9 +6,9 @@
  */
 #ifndef MESSAGE_H__
 #define MESSAGE_H__
-#include <sys/time.h>
+#include <time.h>
 
-#define MESSAGE_MAGIC_NUM   0xF050F050
+#define MESSAGE_MAGIC_NUM   0xF55F
 
 #define MESSAGE_MAJOR_VERSION   0
 #define MESSAGE_MINOR_VERSION   1
@@ -16,7 +16,7 @@
 #define MESSAGE_HEAD_SIZE       32
 
 #define getUnsignedIntData(ptr)     ((ptr)[0]<<24 | (ptr)[1]<<16 | (ptr)[2]<<8 | (ptr)[3])
-#define getUnsignedSIntData(ptr)    ((ptr)[0]<<8 | (ptr)[1])
+#define getUnsignedShortData(ptr)   ((ptr)[0]<<8 | (ptr)[1])
 #define getMESSAGETYPE(ch)          ((MESSAGE_TYPE)(((ch)>>4) & 0xF))
 #define getSERIALIZETYPE(ch)        ((SERIALIZE_TYPE)((ch) & 0xF))
 #define getONEWAYSTATUS(ch)         ((ch) & 0x80)
@@ -40,20 +40,33 @@ enum SERIALIZE_TYPE{
 };
 
 typedef struct{
-    unsigned int magic;
-    unsigned int version;
-    unsigned int head_size;
-    MESSAGE_TYPE message_type;
-    SERIALIZE_TYPE serialize_type;
-    bool one_way;   // 0, need back, 1, not need
-    bool response;  // 0, request, 1, reponse
-    struct timeval timeout;
-    unsigned int status_code;
-//    unsigned char Reserved[8];
+    unsigned int magic:16;
+    unsigned int head_size:16;
+    unsigned char version;
+    MESSAGE_TYPE message_type:4;
+    SERIALIZE_TYPE serialize_type:4;
+    bool one_way:1;   // 0, need back, 1, not need
+    bool response:1;  // 0, request, 1, reponse
+    struct timespec timesp;
+    unsigned int status_code:16;
     unsigned int message_id;
+    //    unsigned char Reserved[12];
     unsigned int body_size;
-    char *body_data;
+    void *body_data;
 }MessageStr;
+
+extern void initMessage(MessageStr &msg);
+extern void setMessageType(MessageStr &msg, MESSAGE_TYPE type);
+extern void setSerializeType(MessageStr &msg, SERIALIZE_TYPE type);
+extern void setOnewayFlag(MessageStr &msg, bool flag);
+extern void setResponseFlag(MessageStr &msg, bool flag);
+extern void setTimeout(MessageStr &msg, struct timespec &tv);
+extern void setStatusCode(MessageStr &msg, unsigned int code);
+extern void setMessageID(MessageStr &msg, unsigned int id);
+extern void setBodyData(MessageStr &msg, void *data, unsigned int size);
+
+extern int getHeadFromData(MessageStr &head, const void *data);
+extern int getDataFromHead(const void *data, MessageStr &head);
 
 #endif
 
