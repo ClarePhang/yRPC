@@ -40,13 +40,13 @@ bool RPCHash::empty(void)
     return rpc_map.empty();
 }
 
-void *RPCHash::find(string &key)
+void *RPCHash::find(const string &key)
 {
     it = rpc_map.find(key);
     return (it == rpc_map.end()) ? NULL : it->second;
 }
 
-int RPCHash::remove(string &key)
+int RPCHash::remove(const string &key)
 {
     it = rpc_map.find(key);
     if(it == rpc_map.end())
@@ -55,7 +55,7 @@ int RPCHash::remove(string &key)
     return 0;
 }
 
-int RPCHash::insert(string &key, void *value)
+int RPCHash::insert(const string &key, void *value)
 {
     it = rpc_map.find(key);
     if(it != rpc_map.end()) // exsit
@@ -66,7 +66,7 @@ int RPCHash::insert(string &key, void *value)
     return 0;
 }
 
-int RPCHash::change(string &key, void *value)
+int RPCHash::change(const string &key, void *value)
 {
     it = rpc_map.find(key);
     if(it == rpc_map.end()) // not exsit

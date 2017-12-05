@@ -24,10 +24,10 @@ public:
     int size(void);
     void clear(void);
     bool empty(void);
-    void *find(string &key);
-    int remove(string &key);
-    int insert(string &key, void *value);
-    int change(string &key, void *value);
+    void *find(const string &key);
+    int remove(const string &key);
+    int insert(const string &key, void *value);
+    int change(const string &key, void *value);
 
 private:
     RPC_MAP rpc_map;
