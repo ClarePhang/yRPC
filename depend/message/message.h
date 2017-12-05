@@ -55,18 +55,34 @@ typedef struct{
     void *body_data;
 }MessageStr;
 
-extern void initMessage(MessageStr &msg);
-extern void setMessageType(MessageStr &msg, MESSAGE_TYPE type);
-extern void setSerializeType(MessageStr &msg, SERIALIZE_TYPE type);
-extern void setOnewayFlag(MessageStr &msg, bool flag);
-extern void setResponseFlag(MessageStr &msg, bool flag);
-extern void setTimeout(MessageStr &msg, struct timespec &tv);
-extern void setStatusCode(MessageStr &msg, unsigned int code);
-extern void setMessageID(MessageStr &msg, unsigned int id);
-extern void setBodyData(MessageStr &msg, void *data, unsigned int size);
+extern void initMessage(MessageStr *msg);
+extern int mallocMessage(MessageStr **msg);
+extern void setMessageType(MessageStr *msg, MESSAGE_TYPE type);
+extern MESSAGE_TYPE getMessageType(MessageStr *msg);
+extern void setSerializeType(MessageStr *msg, SERIALIZE_TYPE type);
+extern SERIALIZE_TYPE getSerializeType(MessageStr *msg);
+extern void setOnewayFlag(MessageStr *msg, bool flag);
+extern bool judgeOneway(MessageStr *msg);
+extern void setResponseFlag(MessageStr *msg, bool flag);
+extern bool judgeResponse(MessageStr *msg);
+extern void setTimeout(MessageStr *msg, struct timespec *tv);
+extern void setStatusCode(MessageStr *msg, unsigned int code);
+extern unsigned int getStatusCode(MessageStr *msg);
+extern void setMessageID(MessageStr *msg, unsigned int id);
+extern unsigned int getMessageID(MessageStr *msg);
 
-extern int getHeadFromData(MessageStr &head, const void *data);
-extern int getDataFromHead(const void *data, MessageStr &head);
+extern void setBodyData(MessageStr *msg, void *data, unsigned int size);
+extern void getBodyData(MessageStr *msg, void **data, unsigned int *size);
+
+extern int getHeadFromData(MessageStr *head, const void *data);
+extern int getDataFromHead(const void *data, MessageStr *head);
+
+extern int mallocLinkRequestMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID);
+extern int mallocLinkResponseMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID);
+extern int mallocBeatRequestMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID);
+extern int mallocBeatResponseMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID);
+extern int mallocApplyRequestMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID);
+extern int mallocApplyResponseMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID);
 
 #endif
 

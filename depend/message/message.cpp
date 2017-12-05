@@ -38,119 +38,168 @@ static int checkSerializeType(SERIALIZE_TYPE st)
     return 0;
 }
 
-void initMessage(MessageStr &msg)
+void initMessage(MessageStr *msg)
 {
-    msg.magic = MESSAGE_MAGIC_NUM;
-    msg.head_size = MESSAGE_HEAD_SIZE;
-    msg.version = MESSAGE_MAJOR_VERSION<<4 | MESSAGE_MINOR_VERSION;
-    msg.message_type = MT_LINK_PK; // maybe not the same
-    msg.serialize_type = ST_BIN_BD; // maybe not the same
-    msg.one_way = false; // need ack, maybe not
-    msg.response = false;  // request, maybe not
-    msg.timesp.tv_sec = 0;
-    msg.timesp.tv_nsec = 0;
-    msg.status_code = 0;
-    msg.message_id = 0;
-    msg.body_size = 0;
+    msg->magic = MESSAGE_MAGIC_NUM;
+    msg->head_size = MESSAGE_HEAD_SIZE;
+    msg->version = MESSAGE_MAJOR_VERSION<<4 | MESSAGE_MINOR_VERSION;
+    msg->message_type = MT_LINK_PK; // maybe not the same
+    msg->serialize_type = ST_BIN_BD; // maybe not the same
+    msg->one_way = false; // need ack, maybe not
+    msg->response = false;  // request, maybe not
+    msg->timesp.tv_sec = 0;
+    msg->timesp.tv_nsec = 0;
+    msg->status_code = 0;
+    msg->message_id = 0;
+    msg->body_size = 0;
 }
 
-void setMessageType(MessageStr &msg, MESSAGE_TYPE type)
+int mallocMessage(MessageStr **msg)
 {
-    msg.message_type = type;
+    *msg = (MessageStr *)malloc(sizeof(MessageStr));
+    if(*msg == NULL)
+    {
+        MSG_ERROR("Message : malloc message struct failed!\n");
+        return -1;
+    }
+
+    initMessage(*msg);
+    return 0;
 }
 
-void setSerializeType(MessageStr &msg, SERIALIZE_TYPE type)
+void setMessageType(MessageStr *msg, MESSAGE_TYPE type)
 {
-    msg.serialize_type = type;
+    msg->message_type = type;
 }
 
-void setOnewayFlag(MessageStr &msg, bool flag)
+MESSAGE_TYPE getMessageType(MessageStr *msg)
 {
-    msg.one_way = flag;
+    return msg->message_type;
 }
 
-void setResponseFlag(MessageStr &msg, bool flag)
+void setSerializeType(MessageStr *msg, SERIALIZE_TYPE type)
 {
-    msg.response = flag;
+    msg->serialize_type = type;
 }
 
-void setTimeout(MessageStr &msg, struct timespec &tv)
+SERIALIZE_TYPE getSerializeType(MessageStr *msg)
+{
+    return msg->serialize_type;
+}
+
+void setOnewayFlag(MessageStr *msg, bool flag)
+{
+    msg->one_way = flag;
+}
+
+bool judgeOneway(MessageStr *msg)
+{
+    return msg->one_way;
+}
+
+void setResponseFlag(MessageStr *msg, bool flag)
+{
+    msg->response = flag;
+}
+
+bool judgeResponse(MessageStr *msg)
+{
+    return msg->response;
+}
+
+void setTimeout(MessageStr *msg, struct timespec *tv)
 {
     struct timespec tp;
     clock_gettime(CLOCK_REALTIME,&tp);
-    tp_tpaddtp(&tv, &tp, &tv);
-    msg.timesp = tv;
+    tp_tpaddtp(tv, &tp, tv);
+    msg->timesp = *tv;
 }
 
-void setStatusCode(MessageStr &msg, unsigned int code)
+void setStatusCode(MessageStr *msg, unsigned int code)
 {
-    msg.status_code = code;
+    msg->status_code = code;
 }
 
-void setMessageID(MessageStr &msg, unsigned int id)
+unsigned int getStatusCode(MessageStr *msg)
 {
-    msg.message_id = id;
+    return msg->status_code;
 }
 
-void setBodyData(MessageStr &msg, void *data, unsigned int size)
+void setMessageID(MessageStr *msg, unsigned int id)
 {
-    msg.body_size = size;
-    msg.body_data = data;
+    msg->message_id = id;
 }
 
-int getHeadFromData(MessageStr &head, const void *data)
+unsigned int getMessageID(MessageStr *msg)
+{
+    return msg->message_id;
+}
+
+void setBodyData(MessageStr *msg, void *data, unsigned int size)
+{
+    msg->body_size = size;
+    msg->body_data = data;
+}
+
+void getBodyData(MessageStr *msg, void **data, unsigned int *size)
+{
+    *size = msg->body_size;
+    *data = msg->body_data;
+}
+
+int getHeadFromData(MessageStr *head, const void *data)
 {
     unsigned char *ptr = (unsigned char *)data;
     
-    head.magic     = getUnsignedShortData(ptr);
-    head.head_size = getUnsignedShortData(ptr + 2);
-    head.version = ptr[4];
-    head.message_type = getMESSAGETYPE(ptr[5]);
-    head.serialize_type = getSERIALIZETYPE(ptr[5]);
+    head->magic     = getUnsignedShortData(ptr);
+    head->head_size = getUnsignedShortData(ptr + 2);
+    head->version = ptr[4];
+    head->message_type = getMESSAGETYPE(ptr[5]);
+    head->serialize_type = getSERIALIZETYPE(ptr[5]);
 
     if(getONEWAYSTATUS(ptr[6]))
-        head.one_way = true;
+        head->one_way = true;
     else
-        head.one_way = false;
+        head->one_way = false;
     if(getRESPONSESTATUS(ptr[6]))
-        head.response = true;
+        head->response = true;
     else
-        head.response = false;
+        head->response = false;
     
-    head.timesp.tv_sec = (ptr[7]<<4) | ((ptr[8]&0xF0)>>4);
-    head.timesp.tv_nsec = ((ptr[8]&0xF)<<8) | ptr[9];
+    head->timesp.tv_sec = (ptr[7]<<4) | ((ptr[8]&0xF0)>>4);
+    head->timesp.tv_nsec = ((ptr[8]&0xF)<<8) | ptr[9];
     
-    head.status_code = getUnsignedShortData(ptr + 10);
-    head.message_id = getUnsignedIntData(ptr + 12);
-//    memcpy(head.Reserved, &ptr[16], 12);
-    head.body_size = getUnsignedIntData(ptr + 28);
+    head->status_code = getUnsignedShortData(ptr + 10);
+    head->message_id = getUnsignedIntData(ptr + 12);
+//    memcpy(head->Reserved, &ptr[16], 12);
+    head->body_size = getUnsignedIntData(ptr + 28);
     
-    if(MESSAGE_MAGIC_NUM != head.magic)
+    if(MESSAGE_MAGIC_NUM != head->magic)
     {
         MSG_ERROR("Message : magic does't match!\n");
         return -1;
     }
 
-    if((MESSAGE_MAJOR_VERSION != ((head.version>>4) & 0xF)) ||
-       (MESSAGE_MINOR_VERSION != (head.version & 0xF)))
+    if((MESSAGE_MAJOR_VERSION != ((head->version>>4) & 0xF)) ||
+       (MESSAGE_MINOR_VERSION != (head->version & 0xF)))
     {
         MSG_ERROR("Message : version does't match!\n");
         return -1;
     }
 
-    if(MESSAGE_HEAD_SIZE != head.head_size)
+    if(MESSAGE_HEAD_SIZE != head->head_size)
     {
         MSG_ERROR("Message : version does't match!\n");
         return -1;
     }
 
-    if(checkMessageType(head.message_type))
+    if(checkMessageType(head->message_type))
     {
         MSG_ERROR("Message : message type does't fit the bill!\n");
         return -1;
     }
 
-    if(checkSerializeType(head.serialize_type))
+    if(checkSerializeType(head->serialize_type))
     {
         MSG_ERROR("Message : serialize type does't fit the bill!\n");
         return -1;
@@ -159,32 +208,93 @@ int getHeadFromData(MessageStr &head, const void *data)
     return  0;
 }
 
-int getDataFromHead(const void *data, MessageStr &head)
+int getDataFromHead(const void *data, MessageStr *head)
 {
     unsigned char *ptr = (unsigned char *)data;
 
-    ptr[0] = (head.magic>>8) & 0xFF;
-    ptr[1] = head.magic & 0xFF;
-    ptr[2] = (head.head_size>>8) & 0xFF;
-    ptr[3] = head.head_size & 0xFF;
-    ptr[4] = head.version;
-    ptr[5] = head.message_type<<4 | head.serialize_type;
-    ptr[6] = (head.one_way<<7 | head.response<<6) & 0xC0;
-    ptr[7] = (head.timesp.tv_sec>>4) & 0xFF;
-    ptr[8] = (head.timesp.tv_sec<<4 & 0xF0) | (head.timesp.tv_nsec>>8 & 0xF);
-    ptr[9] = head.timesp.tv_nsec & 0xFF;
-    ptr[10] = (head.status_code>>8) & 0xFF;
-    ptr[11] = head.status_code & 0xFF;
-    ptr[12] = (head.message_id>>24) & 0xFF;
-    ptr[13] = (head.message_id>>16) & 0xFF;
-    ptr[14] = (head.message_id>>8) & 0xFF;
-    ptr[15] = head.message_id & 0xFF;
-//    memcpy(&ptr[16], head.Reserved, 12);
-    ptr[28] = (head.body_size>>24) & 0xFF;
-    ptr[29] = (head.body_size>>16) & 0xFF;
-    ptr[30] = (head.body_size>>8) & 0xFF;
-    ptr[31] = head.body_size & 0xFF;
+    ptr[0] = (head->magic>>8) & 0xFF;
+    ptr[1] = head->magic & 0xFF;
+    ptr[2] = (head->head_size>>8) & 0xFF;
+    ptr[3] = head->head_size & 0xFF;
+    ptr[4] = head->version;
+    ptr[5] = head->message_type<<4 | head->serialize_type;
+    ptr[6] = (head->one_way<<7 | head->response<<6) & 0xC0;
+    ptr[7] = (head->timesp.tv_sec>>4) & 0xFF;
+    ptr[8] = (head->timesp.tv_sec<<4 & 0xF0) | (head->timesp.tv_nsec>>8 & 0xF);
+    ptr[9] = head->timesp.tv_nsec & 0xFF;
+    ptr[10] = (head->status_code>>8) & 0xFF;
+    ptr[11] = head->status_code & 0xFF;
+    ptr[12] = (head->message_id>>24) & 0xFF;
+    ptr[13] = (head->message_id>>16) & 0xFF;
+    ptr[14] = (head->message_id>>8) & 0xFF;
+    ptr[15] = head->message_id & 0xFF;
+//    memcpy(&ptr[16], head->Reserved, 12);
+    ptr[28] = (head->body_size>>24) & 0xFF;
+    ptr[29] = (head->body_size>>16) & 0xFF;
+    ptr[30] = (head->body_size>>8) & 0xFF;
+    ptr[31] = head->body_size & 0xFF;
 
+    return 0;
+}
+
+int mallocLinkRequestMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID)
+{
+    if(mallocMessage(msg) < 0)
+        return -1;
+    
+    setTimeout(*msg, tp);
+    setMessageID(*msg, msgID);
+    return 0;
+}
+
+int mallocLinkResponseMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID)
+{
+    if(mallocLinkRequestMsg(msg, tp, msgID) < 0)
+        return -1;
+    
+    setResponseFlag(*msg, true);
+    return 0;
+}
+
+int mallocBeatRequestMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID)
+{
+    if(mallocMessage(msg) < 0)
+        return -1;
+    
+    setMessageType(*msg, MT_BEAT_PK);
+    setTimeout(*msg, tp);
+    setMessageID(*msg, msgID);
+    
+    return 0;
+}
+
+int mallocBeatResponseMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID)
+{
+    if(mallocBeatRequestMsg(msg, tp, msgID) < 0)
+        return -1;
+    
+    setResponseFlag(*msg, true);
+    return 0;
+}
+
+int mallocApplyRequestMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID)
+{
+    if(mallocMessage(msg) < 0)
+        return -1;
+    
+    setMessageType(*msg, MT_APPLY_PK);
+    setTimeout(*msg, tp);
+    setMessageID(*msg, msgID);
+    
+    return 0;
+}
+
+int mallocApplyResponseMsg(MessageStr **msg, struct timespec *tp, unsigned int msgID)
+{
+    if(mallocApplyRequestMsg(msg, tp, msgID) < 0)
+        return -1;
+    
+    setResponseFlag(*msg, true);
     return 0;
 }
 
