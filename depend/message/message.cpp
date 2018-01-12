@@ -5,6 +5,7 @@
  * Email : zh5202@163.com
  */
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include "message.h"
 
