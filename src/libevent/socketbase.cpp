@@ -17,20 +17,20 @@
 
 #include "socketbase.h"
 
-#define SB_DEBUG   printf
-#define SB_INFO    printf
-#define SB_WARN    printf
-#define SB_ERROR   printf
+#define K_DEBUG   printf
+#define K_INFO    printf
+#define K_WARN    printf
+#define K_ERROR   printf
 
 int SocketBaseOpt::initSockaddr(struct sockaddr_un &s_addr, const char *path)
 {
     if(path == NULL)
     {
-        SB_ERROR("SocketBase : path name can not be NULL.\n");
+        K_ERROR("SocketBase : path name can not be NULL.\n");
         return -1;
     }
 
-    SB_INFO("SocketBase : using %s as localsocket addr.\n", path);
+    K_INFO("SocketBase : using %s as localsocket addr.\n", path);
     bzero(&s_addr, sizeof(struct sockaddr_un));
     s_addr.sun_family = AF_UNIX;
     strcpy(s_addr.sun_path,path);
@@ -44,7 +44,7 @@ int SocketBaseOpt::initSockaddr(struct sockaddr_in &s_addr, const char *ip, unsi
 
     if(ip == NULL)
     {
-        SB_ERROR("SocketBase : ip addr can not be NULL.\n");
+        K_ERROR("SocketBase : ip addr can not be NULL.\n");
         return -1;
     }
 
@@ -53,16 +53,16 @@ int SocketBaseOpt::initSockaddr(struct sockaddr_in &s_addr, const char *ip, unsi
     s_addr.sin_port   = htons(port);
     if(strncasecmp(ip,"INADDR_ANY",10) == 0)
     {
-        SB_INFO("SocketBase : using INADDR_ANY:%d as ip addr.\n",port);
+        K_INFO("SocketBase : using INADDR_ANY:%d as ip addr.\n",port);
         s_addr.sin_addr.s_addr = INADDR_ANY;
     }
     else
     {
-        SB_INFO("SocketBase : using %s:%d as ip addr.\n",ip,port);
+        K_INFO("SocketBase : using %s:%d as ip addr.\n",ip,port);
         result = inet_aton(ip,(struct in_addr *)&s_addr.sin_addr.s_addr);
         if(result == 0)
         {
-            SB_ERROR("SocketBase : add ip addr failed: %s\n",strerror(errno));
+            K_ERROR("SocketBase : add ip addr failed: %s\n",strerror(errno));
             return -1;
         }
     }
