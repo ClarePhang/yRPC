@@ -4,9 +4,12 @@
  * Author: Konishi
  * Email : konishi5202@163.com
  */
-
 #ifndef COMM_DRIVER_H__
 #define COMM_DRIVER_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //#define USING_COMM_TIMEOUT
 //#define USING_WRITE_HANDLER
@@ -41,6 +44,10 @@ EXTERN int comm_connect(struct sockaddr *s_addr, size_t s_len, struct timeval &t
 EXTERN void comm_disconnect(void *fdptr);
 
 EXTERN int comm_send(const void *fdptr, const void *data, size_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // COMM_DRIVER_H__
 
