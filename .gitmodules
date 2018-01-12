@@ -3,4 +3,4 @@
 	url = git@github.com:AaronKonishi/inifile2.git
 [submodule "third_repo/threadpool"]
 	path = third_repo/threadpool
-	url = https://github.com/AaronKonishi/ythreadpool.git
+	url = git@github.com:AaronKonishi/ythreadpool.git
