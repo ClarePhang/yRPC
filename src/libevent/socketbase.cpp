@@ -22,7 +22,7 @@
 #define K_WARN    printf
 #define K_ERROR   printf
 
-int initLSocketAddr(struct sockaddr_un &s_addr, const char *path)
+int SocketBaseOpt::initSockaddr(struct sockaddr_un &s_addr, const char *path)
 {
     if(path == NULL)
     {
@@ -38,7 +38,7 @@ int initLSocketAddr(struct sockaddr_un &s_addr, const char *path)
     return 0;
 }
 
-int initNSocketAddr(struct sockaddr_in &s_addr, const char *ip, unsigned int port)
+int SocketBaseOpt::initSockaddr(struct sockaddr_in &s_addr, const char *ip, unsigned int port)
 {
     int result = -1;
 
