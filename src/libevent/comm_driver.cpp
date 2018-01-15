@@ -43,6 +43,11 @@
         }                                                       \
     } while (0)
 
+#ifdef __cplusplus
+        extern "C" {
+#endif
+#define STATIC  static
+
 STATIC bool cycle_check_flag = false;
 STATIC struct event *cycle_check_event = NULL;
 STATIC struct event_base *event_main_base = NULL;
@@ -51,307 +56,10 @@ STATIC struct evconnlistener *evcon_listener = NULL;
 STATIC struct timeval cycle_check_tv = {DEFAULT_CHECK_CYCLE, 0};
 STATIC struct timeval comm_timeout_tv = {DEFAULT_COMM_TIMEOUT, 0};
 
-STATIC pthread_t comm_main_thread_id = 0;
-STATIC pthread_t comm_accept_thread_id = 0;
 STATIC pthread_cond_t comm_connect_cond = PTHREAD_COND_INITIALIZER;
 STATIC pthread_mutex_t comm_connect_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 STATIC CommEventHandler comm_event_handler_ptr = NULL;
-
-STATIC void cycle_check_handler(evutil_socket_t fd, short event, void *arg);
-STATIC void comm_listener_handler(struct evconnlistener *listener, evutil_socket_t fd,
-                                  struct sockaddr *sa, int socklen, void *user_data);
-STATIC void comm_read_handler(struct bufferevent *bev, void *user_data);
-#ifdef USING_WRITE_HANDLER
-STATIC void comm_write_handler(struct bufferevent *bev, void *user_data);
-#endif
-STATIC void comm_event_handler(struct bufferevent *bev, short events, void *user_data);
-
-STATIC void *comm_main_threading(void *arg);
-STATIC void *comm_accept_threading(void *arg);
-
-void comm_version(void)
-{
-    K_INFO("COMM : version: %s\n",COMM_VERSION);
-    K_INFO("COMM : Third software :libevent %s\n", event_get_version());
-}
-
-void comm_methods(void)
-{
-    const char **a = event_get_supported_methods();
-    K_INFO("COMM : System supported methods:\n");
-    for(int i = 0; a[i] != NULL; i++)
-        K_INFO(" [%d] : %s\n", i, a[i]);
-
-    K_INFO("COMM : now we use %s\n",event_base_get_method(event_accept_base));
-}
-
-void comm_set_timeout(struct timeval &tv)
-{
-    if((tv.tv_sec == 0) && (tv.tv_usec == 0))
-    {
-        comm_timeout_tv.tv_sec = DEFAULT_COMM_TIMEOUT;
-        comm_timeout_tv.tv_usec = 0;
-    }
-    else
-    {
-        comm_timeout_tv.tv_sec = tv.tv_sec;
-        comm_timeout_tv.tv_usec = tv.tv_usec;
-    }
-}
-
-void comm_set_cyclecheck(struct timeval &tv)
-{
-    if((tv.tv_sec == 0) && (tv.tv_usec == 0))
-    {
-        cycle_check_tv.tv_sec = DEFAULT_CHECK_CYCLE;
-        cycle_check_tv.tv_usec = 0;
-    }
-    else
-    {
-        cycle_check_tv.tv_sec = tv.tv_sec;
-        cycle_check_tv.tv_usec = tv.tv_usec;
-    }
-}
-
-// para: s_addr can be a sockaddr_in or sockaddr_un, s_len is the length of it.
-int comm_create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_len)
-{
-    char *debug_conf = NULL;
-    
-    debug_conf = getenv(COMM_DEBUE);
-    if(debug_conf != NULL)
-    {
-        event_enable_debug_mode();
-        event_enable_debug_logging(EVENT_DBG_ALL);
-        //event_enable_debug_logging(EVENT_DBG_NONE);
-    }
-    
-    evthread_use_pthreads();  //enable threads
-    
-    event_main_base = event_base_new();
-    if(!event_main_base)
-    {
-        K_ERROR("COMM : new communication event base failed!\n");
-        goto INIT_EVENT_FAILED;
-    }
-    
-    event_accept_base = event_base_new();
-    if(!event_accept_base)
-    {
-        K_ERROR("COMM : new accept event base failed!\n");
-        goto INIT_EVENT_FAILED;
-    }
-    
-    evthread_make_base_notifiable(event_main_base);
-    evthread_make_base_notifiable(event_accept_base);
-
-    cycle_check_event = (struct event *)malloc(sizeof(struct event));
-    if(!cycle_check_event)
-    {
-        K_ERROR("COMM : malloc cycle check event failed!\n");
-        goto MALLOC_EVENT_FAILED;
-        return -1;
-    }
-
-    evcon_listener = evconnlistener_new_bind(event_accept_base, comm_listener_handler, NULL,
-        LEV_OPT_REUSEABLE|LEV_OPT_REUSEABLE_PORT|LEV_OPT_THREADSAFE|BEV_OPT_CLOSE_ON_FREE,
-        -1, s_addr, s_len);
-    if(!evcon_listener)
-    {
-        K_ERROR("COMM : new evconnlistener bind failed!\n");
-        goto MALLOC_EVENT_FAILED;
-    }
-
-    if(evtimer_assign(cycle_check_event, event_main_base, cycle_check_handler, NULL) < 0)
-    {
-        K_ERROR("COMM : assign event-timer failed!\n");
-        goto INIT_EVENT_FAILED;
-    }
-
-    if(evtimer_add(cycle_check_event, &cycle_check_tv) < 0)
-    {
-        K_ERROR("COMM : add event-timer failed!\n");
-        return -1;
-    }
-
-    comm_event_handler_ptr = handler;
-    
-    if(pthread_create(&comm_main_thread_id, NULL, comm_main_threading, NULL) != 0)
-    {
-        K_ERROR("COMM : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
-        goto CREATE_THREAD_FAILED;
-    }
-    if(pthread_create(&comm_accept_thread_id, NULL, comm_accept_threading, NULL) != 0)
-    {
-        K_ERROR("COMM : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
-        return -1;
-    }
-
-    return 0;
-CREATE_THREAD_FAILED:
-    if(comm_accept_thread_id != 0)
-    {
-        event_base_loopexit(event_accept_base, NULL);
-        pthread_join(comm_accept_thread_id, NULL);
-        comm_accept_thread_id = 0;
-    }
-    if(comm_main_thread_id != 0)
-    {
-        event_base_loopexit(event_main_base, NULL);
-        pthread_join(comm_main_thread_id, NULL);
-        comm_main_thread_id = 0;
-    }
-MALLOC_EVENT_FAILED:
-    if(evcon_listener)
-    {
-        evconnlistener_free(evcon_listener);
-        evcon_listener = NULL;
-    }
-    if(cycle_check_event)
-    {
-        //evtimer_del(cycle_check_event);  //here not need
-        free(cycle_check_event);
-        cycle_check_event = NULL;
-    }
-INIT_EVENT_FAILED:
-    if(event_main_base)
-    {
-        event_base_free(event_main_base);
-        event_main_base = NULL;
-    }
-    if(event_accept_base)
-    {
-        event_base_free(event_accept_base);
-        event_accept_base = NULL;
-    }
-    return -1;
-}
-
-void comm_destroy(void)
-{
-    if(comm_accept_thread_id != 0)
-    {
-        event_base_loopexit(event_accept_base, NULL);
-        pthread_join(comm_accept_thread_id, NULL);
-        comm_accept_thread_id = 0;
-    }
-    if(comm_main_thread_id != 0)
-    {
-        event_base_loopexit(event_main_base, NULL);
-        pthread_join(comm_main_thread_id, NULL);
-        comm_main_thread_id = 0;
-    }
- 
-    if(evcon_listener)
-    {
-        evconnlistener_free(evcon_listener);
-        evcon_listener = NULL;
-    }
-    if(cycle_check_event)
-    {
-        evtimer_del(cycle_check_event);
-        free(cycle_check_event);
-        cycle_check_event = NULL;
-    }
-    
-    if(event_main_base)
-    {
-        event_base_free(event_main_base);
-        event_main_base = NULL;
-    }
-    if(event_accept_base)
-    {
-        event_base_free(event_accept_base);
-        event_accept_base = NULL;
-    }
-}
-
-int comm_connect(struct sockaddr *s_addr, size_t s_len, struct timeval &tv, void **fdptr)
-{
-    int result = -1;
-    struct timespec outtime;
-    struct bufferevent *bev = NULL;
-    struct timeval c_tv = {0, 20*1000};  // add 20 ms for connect wait
-
-    bev = bufferevent_socket_new(event_main_base, -1, BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
-    if(!bev)
-    {
-        K_ERROR("COMM : new bufferevent_socket failed!\n");
-        goto CONNECT_FAILED;
-    }
-
-    if((tv.tv_sec == 0) && (tv.tv_usec == 0))
-        tv.tv_usec = DEFAULT_CONNECT_TIMEOUT*1000;
-    
-    bufferevent_setcb(bev, NULL, NULL, comm_event_handler, bev);
-    result = bufferevent_socket_connect(bev, s_addr, s_len);
-    if( -1 == result)
-    {
-        K_ERROR("COMM : Connect to %s failed, %s!\n", inet_ntoa(((sockaddr_in *)s_addr)->sin_addr), evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-        goto CONNECT_FAILED;
-    }
-    bufferevent_set_timeouts(bev, &tv, NULL);
-    bufferevent_enable(bev , EV_READ|EV_WRITE);
-
-    // wait connect back
-    pthread_mutex_lock(&comm_connect_mutex);
-    clock_gettime(CLOCK_REALTIME,&outtime);
-    evutil_timeradd(&tv, &c_tv, &c_tv);
-    tp_tvaddtp(&c_tv, &outtime, &outtime);
-    result = pthread_cond_timedwait(&comm_connect_cond, &comm_connect_mutex, &outtime);
-    pthread_mutex_unlock(&comm_connect_mutex);
-    if(ETIMEDOUT == result)
-    {
-        K_ERROR("COMM : connect to %s timeout!\n",inet_ntoa(((sockaddr_in *)s_addr)->sin_addr));
-        goto CONNECT_FAILED;
-    }
-    else if(result < 0)
-    {
-        K_ERROR("COMM : connect to %s error, %s!\n",inet_ntoa(((sockaddr_in *)s_addr)->sin_addr), strerror(errno));
-        goto CONNECT_FAILED;
-    }
-
-    if(fdptr)
-        *fdptr = (void *)bev;
-    
-    return 0;
-
-CONNECT_FAILED:
-    return -1;
-}
-
-void comm_disconnect(void *fdptr)
-{
-    struct bufferevent *bev = (struct bufferevent *)fdptr;
-    if(bev)
-    {
-        bufferevent_set_timeouts(bev, NULL, NULL);
-        bufferevent_free(bev);
-    }
-}
-
-int comm_send(const void *fdptr, const void *data, size_t size)
-{
-    struct bufferevent * bev = (struct bufferevent *)fdptr;
-    
-    if(bev)
-    {
-        //K_DEBUG("COMM : send %lu, %s\n", size, (char *)data);
-        return bufferevent_write(bev, data, size);
-    }
-    else
-    {
-        K_WARN("COMM : send bufferevent is NULL!\n");
-    }
-    
-    return -1;
-}
-
-void cycle_check_en(bool enable)
-{
-    cycle_check_flag = enable;
-}
 
 STATIC void cycle_check_handler(evutil_socket_t fd, short event, void *arg)
 {
@@ -359,53 +67,6 @@ STATIC void cycle_check_handler(evutil_socket_t fd, short event, void *arg)
     
     if(cycle_check_flag && comm_event_handler_ptr)
         comm_event_handler_ptr(COMMEventCheck, NULL, NULL, 0);
-}
-
-STATIC void comm_listener_handler(struct evconnlistener *listener, evutil_socket_t fd,
-                             struct sockaddr *sa, int socklen, void *user_data)
-{
-    int result = -1;
-    struct bufferevent *bev = NULL;
-    
-    K_INFO("COMM : New connecting from %s:%d\n",inet_ntoa(((sockaddr_in *)sa)->sin_addr),
-           ntohs(((sockaddr_in *)sa)->sin_port));
-    
-    bev = bufferevent_socket_new(event_main_base, fd, LEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
-    if(!bev)
-    {
-        K_ERROR("COMM : Could not create new bufferevent!\n");
-        return ;
-    }
-
-    // set communication timeout if needed
-    #ifndef USING_COMM_TIMEOUT
-    bufferevent_set_timeouts(bev, NULL, NULL);
-    #else
-    bufferevent_set_timeouts(bev, &comm_timeout_tv, NULL);
-    //bufferevent_set_timeouts(bev, &comm_timeout_tv, &comm_timeout_tv);
-    #endif
-    
-    //BEV_OPT_THREADSAFE support
-    result = bufferevent_enable(bev, BEV_OPT_THREADSAFE);
-    if(result < 0)
-    {
-        K_ERROR("COMM : enable bufferevent BEV_OPT_THREADSAFE failed!\n");
-        bufferevent_free(bev);
-        return ;
-    }
-
-    K_INFO("COMM : new bufferevent addr :%p\n",bev);
-    
-    // set readcb, writecb and errcb
-    #ifdef USING_WRITE_HANDLER
-    bufferevent_setcb(bev, comm_read_handler, comm_write_handler, comm_event_handler, NULL);
-    #else
-    bufferevent_setcb(bev, comm_read_handler, NULL, comm_event_handler, NULL);
-    #endif
-    bufferevent_enable(bev, EV_READ | EV_WRITE);
-
-    if(comm_event_handler_ptr)
-        comm_event_handler_ptr(COMMEventConnect, (void *)bev, NULL, 0);
 }
 
 STATIC void comm_read_handler(struct bufferevent *bev, void *user_data)
@@ -544,6 +205,53 @@ STATIC void comm_event_handler(struct bufferevent *bev, short events, void *user
     }
 }
 
+STATIC void comm_listener_handler(struct evconnlistener *listener, evutil_socket_t fd,
+                                  struct sockaddr *sa, int socklen, void *user_data)
+{
+    int result = -1;
+    struct bufferevent *bev = NULL;
+    
+    K_INFO("COMM : New connecting from %s:%d\n",inet_ntoa(((sockaddr_in *)sa)->sin_addr),
+           ntohs(((sockaddr_in *)sa)->sin_port));
+    
+    bev = bufferevent_socket_new(event_main_base, fd, LEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+    if(!bev)
+    {
+        K_ERROR("COMM : Could not create new bufferevent!\n");
+        return ;
+    }
+
+    // set communication timeout if needed
+    #ifndef USING_COMM_TIMEOUT
+    bufferevent_set_timeouts(bev, NULL, NULL);
+    #else
+    bufferevent_set_timeouts(bev, &comm_timeout_tv, NULL);
+    //bufferevent_set_timeouts(bev, &comm_timeout_tv, &comm_timeout_tv);
+    #endif
+    
+    //BEV_OPT_THREADSAFE support
+    result = bufferevent_enable(bev, BEV_OPT_THREADSAFE);
+    if(result < 0)
+    {
+        K_ERROR("COMM : enable bufferevent BEV_OPT_THREADSAFE failed!\n");
+        bufferevent_free(bev);
+        return ;
+    }
+
+    K_INFO("COMM : new bufferevent addr :%p\n",bev);
+    
+    // set readcb, writecb and errcb
+    #ifdef USING_WRITE_HANDLER
+    bufferevent_setcb(bev, comm_read_handler, comm_write_handler, comm_event_handler, NULL);
+    #else
+    bufferevent_setcb(bev, comm_read_handler, NULL, comm_event_handler, NULL);
+    #endif
+    bufferevent_enable(bev, EV_READ | EV_WRITE);
+
+    if(comm_event_handler_ptr)
+        comm_event_handler_ptr(COMMEventConnect, (void *)bev, NULL, 0);
+}
+
 STATIC void *comm_main_threading(void *arg)
 {
     K_INFO("COMM : communication event-loop id:%lu\n",pthread_self());
@@ -562,5 +270,293 @@ STATIC void *comm_accept_threading(void *arg)
     
     K_INFO("COMM : accept event-loop exit.\n");
     pthread_exit(NULL);
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+void RPCComm::version(void)
+{
+    K_INFO("COMM : version: %s\n",COMM_VERSION);
+    K_INFO("COMM : Third software :libevent %s\n", event_get_version());
+}
+
+void RPCComm::methods(void)
+{
+    const char **a = event_get_supported_methods();
+    K_INFO("COMM : System supported methods:\n");
+    for(int i = 0; a[i] != NULL; i++)
+        K_INFO(" [%d] : %s\n", i, a[i]);
+}
+
+void RPCComm::setTimeout(struct timeval &tv)
+{
+    if((tv.tv_sec == 0) && (tv.tv_usec == 0))
+    {
+        comm_timeout_tv.tv_sec = DEFAULT_COMM_TIMEOUT;
+        comm_timeout_tv.tv_usec = 0;
+    }
+    else
+    {
+        comm_timeout_tv.tv_sec = tv.tv_sec;
+        comm_timeout_tv.tv_usec = tv.tv_usec;
+    }
+}
+
+void RPCComm::setCyclecheck(struct timeval &tv)
+{
+    if((tv.tv_sec == 0) && (tv.tv_usec == 0))
+    {
+        cycle_check_tv.tv_sec = DEFAULT_CHECK_CYCLE;
+        cycle_check_tv.tv_usec = 0;
+    }
+    else
+    {
+        cycle_check_tv.tv_sec = tv.tv_sec;
+        cycle_check_tv.tv_usec = tv.tv_usec;
+    }
+}
+
+void RPCComm::cyclecheckEn(bool enable)
+{
+    cycle_check_flag = enable;
+}
+
+
+// para: s_addr can be a sockaddr_in or sockaddr_un, s_len is the length of it.
+int RPCComm::create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_len)
+{
+    char *debug_conf = NULL;
+    
+    debug_conf = getenv(COMM_DEBUE);
+    if(debug_conf != NULL)
+    {
+        event_enable_debug_mode();
+        event_enable_debug_logging(EVENT_DBG_ALL);
+        //event_enable_debug_logging(EVENT_DBG_NONE);
+    }
+    
+    evthread_use_pthreads();  //enable threads
+    
+    event_main_base = event_base_new();
+    if(!event_main_base)
+    {
+        K_ERROR("COMM : new communication event base failed!\n");
+        goto INIT_EVENT_FAILED;
+    }
+    
+    event_accept_base = event_base_new();
+    if(!event_accept_base)
+    {
+        K_ERROR("COMM : new accept event base failed!\n");
+        goto INIT_EVENT_FAILED;
+    }
+    
+    evthread_make_base_notifiable(event_main_base);
+    evthread_make_base_notifiable(event_accept_base);
+
+    cycle_check_event = (struct event *)malloc(sizeof(struct event));
+    if(!cycle_check_event)
+    {
+        K_ERROR("COMM : malloc cycle check event failed!\n");
+        goto MALLOC_EVENT_FAILED;
+        return -1;
+    }
+
+    evcon_listener = evconnlistener_new_bind(event_accept_base, comm_listener_handler, NULL,
+        LEV_OPT_REUSEABLE|LEV_OPT_REUSEABLE_PORT|LEV_OPT_THREADSAFE|BEV_OPT_CLOSE_ON_FREE,
+        -1, s_addr, s_len);
+    if(!evcon_listener)
+    {
+        K_ERROR("COMM : new evconnlistener bind failed!\n");
+        goto MALLOC_EVENT_FAILED;
+    }
+
+    if(evtimer_assign(cycle_check_event, event_main_base, cycle_check_handler, NULL) < 0)
+    {
+        K_ERROR("COMM : assign event-timer failed!\n");
+        goto INIT_EVENT_FAILED;
+    }
+
+    if(evtimer_add(cycle_check_event, &cycle_check_tv) < 0)
+    {
+        K_ERROR("COMM : add event-timer failed!\n");
+        return -1;
+    }
+
+    comm_event_handler_ptr = handler;
+    
+    if(pthread_create(&comm_main_thread_id, NULL, comm_main_threading, NULL) != 0)
+    {
+        K_ERROR("COMM : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
+        goto CREATE_THREAD_FAILED;
+    }
+    if(pthread_create(&comm_accept_thread_id, NULL, comm_accept_threading, NULL) != 0)
+    {
+        K_ERROR("COMM : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
+        return -1;
+    }
+
+    K_INFO("COMM : we use %s method\n",event_base_get_method(event_accept_base));
+
+    return 0;
+CREATE_THREAD_FAILED:
+    if(comm_accept_thread_id != 0)
+    {
+        event_base_loopexit(event_accept_base, NULL);
+        pthread_join(comm_accept_thread_id, NULL);
+        comm_accept_thread_id = 0;
+    }
+    if(comm_main_thread_id != 0)
+    {
+        event_base_loopexit(event_main_base, NULL);
+        pthread_join(comm_main_thread_id, NULL);
+        comm_main_thread_id = 0;
+    }
+MALLOC_EVENT_FAILED:
+    if(evcon_listener)
+    {
+        evconnlistener_free(evcon_listener);
+        evcon_listener = NULL;
+    }
+    if(cycle_check_event)
+    {
+        //evtimer_del(cycle_check_event);  //here not need
+        free(cycle_check_event);
+        cycle_check_event = NULL;
+    }
+INIT_EVENT_FAILED:
+    if(event_main_base)
+    {
+        event_base_free(event_main_base);
+        event_main_base = NULL;
+    }
+    if(event_accept_base)
+    {
+        event_base_free(event_accept_base);
+        event_accept_base = NULL;
+    }
+    return -1;
+}
+
+void RPCComm::destroy(void)
+{
+    if(comm_accept_thread_id != 0)
+    {
+        event_base_loopexit(event_accept_base, NULL);
+        pthread_join(comm_accept_thread_id, NULL);
+        comm_accept_thread_id = 0;
+    }
+    if(comm_main_thread_id != 0)
+    {
+        event_base_loopexit(event_main_base, NULL);
+        pthread_join(comm_main_thread_id, NULL);
+        comm_main_thread_id = 0;
+    }
+ 
+    if(evcon_listener)
+    {
+        evconnlistener_free(evcon_listener);
+        evcon_listener = NULL;
+    }
+    if(cycle_check_event)
+    {
+        evtimer_del(cycle_check_event);
+        free(cycle_check_event);
+        cycle_check_event = NULL;
+    }
+    
+    if(event_main_base)
+    {
+        event_base_free(event_main_base);
+        event_main_base = NULL;
+    }
+    if(event_accept_base)
+    {
+        event_base_free(event_accept_base);
+        event_accept_base = NULL;
+    }
+}
+
+int RPCComm::connect(struct sockaddr *s_addr, size_t s_len, struct timeval &tv, void **fdptr)
+{
+    int result = -1;
+    struct timespec outtime;
+    struct bufferevent *bev = NULL;
+    struct timeval c_tv = {0, 20*1000};  // add 20 ms for connect wait
+
+    bev = bufferevent_socket_new(event_main_base, -1, BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+    if(!bev)
+    {
+        K_ERROR("COMM : new bufferevent_socket failed!\n");
+        goto CONNECT_FAILED;
+    }
+
+    if((tv.tv_sec == 0) && (tv.tv_usec == 0))
+        tv.tv_usec = DEFAULT_CONNECT_TIMEOUT*1000;
+    
+    bufferevent_setcb(bev, NULL, NULL, comm_event_handler, bev);
+    result = bufferevent_socket_connect(bev, s_addr, s_len);
+    if( -1 == result)
+    {
+        K_ERROR("COMM : Connect to %s failed, %s!\n", inet_ntoa(((sockaddr_in *)s_addr)->sin_addr), evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        goto CONNECT_FAILED;
+    }
+    bufferevent_set_timeouts(bev, &tv, NULL);
+    bufferevent_enable(bev , EV_READ|EV_WRITE);
+
+    // wait connect back
+    pthread_mutex_lock(&comm_connect_mutex);
+    clock_gettime(CLOCK_REALTIME,&outtime);
+    evutil_timeradd(&tv, &c_tv, &c_tv);
+    tp_tvaddtp(&c_tv, &outtime, &outtime);
+    result = pthread_cond_timedwait(&comm_connect_cond, &comm_connect_mutex, &outtime);
+    pthread_mutex_unlock(&comm_connect_mutex);
+    if(ETIMEDOUT == result)
+    {
+        K_ERROR("COMM : connect to %s timeout!\n",inet_ntoa(((sockaddr_in *)s_addr)->sin_addr));
+        goto CONNECT_FAILED;
+    }
+    else if(result < 0)
+    {
+        K_ERROR("COMM : connect to %s error, %s!\n",inet_ntoa(((sockaddr_in *)s_addr)->sin_addr), strerror(errno));
+        goto CONNECT_FAILED;
+    }
+
+    if(fdptr)
+        *fdptr = (void *)bev;
+    
+    return 0;
+
+CONNECT_FAILED:
+    return -1;
+}
+
+void RPCComm::disconnect(void *fdptr)
+{
+    struct bufferevent *bev = (struct bufferevent *)fdptr;
+    if(bev)
+    {
+        bufferevent_set_timeouts(bev, NULL, NULL);
+        bufferevent_free(bev);
+    }
+}
+
+int RPCComm::send(const void *fdptr, const void *data, size_t size)
+{
+    struct bufferevent * bev = (struct bufferevent *)fdptr;
+    
+    if(bev)
+    {
+        //K_DEBUG("COMM : send %lu, %s\n", size, (char *)data);
+        return bufferevent_write(bev, data, size);
+    }
+    else
+    {
+        K_WARN("COMM : send bufferevent is NULL!\n");
+    }
+    
+    return -1;
 }
 

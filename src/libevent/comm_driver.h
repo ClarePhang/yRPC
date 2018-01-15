@@ -7,17 +7,11 @@
 #ifndef COMM_DRIVER_H__
 #define COMM_DRIVER_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 //#define USING_COMM_TIMEOUT
 //#define USING_WRITE_HANDLER
 
 #define COMM_VERSION    "V1.1"
 
-#define EXTERN  extern
-#define STATIC  static
 #define COMM_DEBUE  "COMMUNICATION_DEBUG"
 
 #define COMMEventRecv        0x01
@@ -31,23 +25,39 @@ extern "C" {
 
 typedef int (*CommEventHandler)(unsigned int type, void *fd_ptr, void *data, size_t data_len);
 
-EXTERN void comm_version(void);
-EXTERN void comm_methods(void);
-EXTERN void comm_set_timeout(struct timeval &tv);
-EXTERN void comm_set_cyclecheck(struct timeval &tv);
+class RPCComm
+{
+public:
+    RPCComm()
+    {
+        comm_main_thread_id = 0;
+        comm_accept_thread_id = 0;
+    };
+    ~RPCComm()
+    {
+        comm_main_thread_id = 0;
+        comm_accept_thread_id = 0;
+    };
 
-EXTERN int comm_create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_len);
-EXTERN void comm_destroy(void);
-EXTERN void cycle_check_en(bool enable);
+public:
+    void version(void);
+    void methods(void);
+    void setTimeout(struct timeval &tv);
+    void setCyclecheck(struct timeval &tv);
+    void cyclecheckEn(bool enable);
 
-EXTERN int comm_connect(struct sockaddr *s_addr, size_t s_len, struct timeval &tv, void **fdptr);
-EXTERN void comm_disconnect(void *fdptr);
+    int create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_len);
+    void destroy(void);
 
-EXTERN int comm_send(const void *fdptr, const void *data, size_t size);
+    int connect(struct sockaddr *s_addr, size_t s_len, struct timeval &tv, void **fdptr);
+    void disconnect(void *fdptr);
 
-#ifdef __cplusplus
-}
-#endif
+    int send(const void *fdptr, const void *data, size_t size);
+    
+private:
+    pthread_t comm_main_thread_id;
+    pthread_t comm_accept_thread_id;
+};
 
 #endif // COMM_DRIVER_H__
 
