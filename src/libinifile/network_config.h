@@ -4,18 +4,10 @@
  * Author: Konishi
  * Email : konishi5202@163.com
  */
+
 #ifndef NETWORK_CONFIG_H__
 #define NETWORK_CONFIG_H__
 #include <string>
-#include "inifile.h"
-using namespace inifile;
-
-#define GLOBALSECTION       "Global"
-#define COMMTIMEOUTKEY      "CommunicateTimeout"
-#define CONNECTTIMEOUTKEY   "ConnectTimeout"
-
-#define IPKEY   "IPAddress"
-#define PORTKEY "MonitorPort"
 
 typedef struct {
     string ipaddr;
@@ -30,16 +22,18 @@ public:
 
 public:
     int setConfigProfile(const string &path);
+    void getConnectTimeout(struct timeval *tv);
+    void getCommunicateTimeout(struct timeval *tv);
     int getNetworkConfig(const string &section, SocketStruct &addr);
     
-public: // for test and debug, if use change to public
+public: // for test and debug
     void printSection(void);
     void printConfiguration(void);
 
 private:
     bool path_init;
-    IniFile m_inifile;
 };
+
 
 #endif  //NETWORK_CONFIG_H__
 

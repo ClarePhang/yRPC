@@ -4,16 +4,28 @@
  * Author: Konishi
  * Email : konishi5202@163.com
  */
+
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 
+#include "inifile.h"
 #include "network_config.h"
 
-#define NM_DEBUG   printf
-#define NM_INFO    printf
-#define NM_WARN    printf
-#define NM_ERROR   printf
+#define K_DEBUG   printf
+#define K_INFO    printf
+#define K_WARN    printf
+#define K_ERROR   printf
+
+#define GLOBALSECTION       "Global"
+#define COMMTIMEOUTKEY      "CommunicateTimeout"
+#define CONNECTTIMEOUTKEY   "ConnectTimeout"
+
+#define IPKEY   "IPAddress"
+#define PORTKEY "MonitorPort"
+
+using namespace inifile;
+static IniFile m_inifile;
 
 NetworkConfig::NetworkConfig()
 {
@@ -31,7 +43,7 @@ int NetworkConfig::setConfigProfile(const string &path)
     
     if(path.empty())
     {
-        NM_ERROR("NetworkConfig : config-file path can not be NULL!\n");
+        K_ERROR("NetworkConfig : config-file path can not be NULL!\n");
         return -1;
     }
     
@@ -39,7 +51,7 @@ int NetworkConfig::setConfigProfile(const string &path)
     if(ret != 0)
     {
         path_init = false;
-        NM_ERROR("NetworkConfig : load %s config-file failed!\n", path.c_str());
+        K_ERROR("NetworkConfig : load %s config-file failed!\n", path.c_str());
         return -1;
     }
     
@@ -47,17 +59,37 @@ int NetworkConfig::setConfigProfile(const string &path)
 
     if(!m_inifile.hasKey(GLOBALSECTION, string(COMMTIMEOUTKEY)))
     {
-        NM_ERROR("NetworkConfig : does't not have %s:%s config, please check!\n", GLOBALSECTION, COMMTIMEOUTKEY);
+        K_ERROR("NetworkConfig : does't not have %s:%s config, please check!\n", GLOBALSECTION, COMMTIMEOUTKEY);
         return -1;
     }
 
     if(!m_inifile.hasKey(GLOBALSECTION, string(CONNECTTIMEOUTKEY)))
     {
-        NM_ERROR("NetworkConfig : does't not have %s:%s config, please check!\n", GLOBALSECTION, CONNECTTIMEOUTKEY);
+        K_ERROR("NetworkConfig : does't not have %s:%s config, please check!\n", GLOBALSECTION, CONNECTTIMEOUTKEY);
         return -1;
     }
     
     return ret;
+}
+
+void NetworkConfig::getConnectTimeout(struct timeval *tv)
+{
+    int ret = -1;
+    int timeout = 0;
+    
+    timeout = m_inifile.getIntValue(string(GLOBALSECTION), string(CONNECTTIMEOUTKEY),ret);
+    tv->tv_sec = timeout/1000;
+    tv->tv_usec = (timeout%1000)*1000;
+}
+
+void NetworkConfig::getCommunicateTimeout(struct timeval *tv)
+{
+    int ret = -1;
+    int timeout = 0;
+    
+    timeout = m_inifile.getIntValue(string(GLOBALSECTION), string(COMMTIMEOUTKEY),ret);
+    tv->tv_sec = timeout/1000;
+    tv->tv_usec = (timeout%1000)*1000;
 }
 
 int NetworkConfig::getNetworkConfig(const string &section, SocketStruct &addr)
@@ -66,19 +98,19 @@ int NetworkConfig::getNetworkConfig(const string &section, SocketStruct &addr)
     
     if(!m_inifile.hasSection(section))
     {
-        NM_ERROR("NetworkConfig : does't not have %s process config, please check!\n", section.c_str());
+        K_ERROR("NetworkConfig : does't not have %s process config, please check!\n", section.c_str());
         return -1;
     }
 
     if(!m_inifile.hasKey(section, string(IPKEY)))
     {
-        NM_ERROR("NetworkConfig : does't not have %s:%s config, please check!\n", section.c_str(), IPKEY);
+        K_ERROR("NetworkConfig : does't not have %s:%s config, please check!\n", section.c_str(), IPKEY);
         return -1;
     }
 
     if(!m_inifile.hasKey(section, string(PORTKEY)))
     {
-        NM_ERROR("NetworkConfig : does't not have %s:%s config, please check!\n", section.c_str(), PORTKEY);
+        K_ERROR("NetworkConfig : does't not have %s:%s config, please check!\n", section.c_str(), PORTKEY);
         return -1;
     }
 
@@ -92,10 +124,10 @@ void NetworkConfig::printSection(void)
 {
     IniFile::iterator it;
 
-    NM_INFO("NetworkConfig : Section:\n");
+    K_INFO("NetworkConfig : Section:\n");
     for(it = m_inifile.begin();it != m_inifile.end(); ++it)
-        NM_INFO(" %s\n",it->first.c_str());
-    NM_INFO("\n");
+        K_INFO(" %s\n",it->first.c_str());
+    K_INFO("\n");
 }
 
 void NetworkConfig::printConfiguration(void)
@@ -103,15 +135,15 @@ void NetworkConfig::printConfiguration(void)
     IniFile::iterator it;
     IniSection::iterator iti;
     
-    NM_INFO("NetworkConfig : Configurations:\n");
+    K_INFO("NetworkConfig : Configurations:\n");
     for(it = m_inifile.begin();it != m_inifile.end(); ++it)
     {
-        NM_INFO(" %s\n",it->first.c_str());
+        K_INFO(" %s\n",it->first.c_str());
         for(iti = it->second->items.begin();iti != it->second->items.end(); ++iti)
         {
-            NM_INFO("  %s=%s\n", iti->key.c_str(), iti->value.c_str());
+            K_INFO("  %s=%s\n", iti->key.c_str(), iti->value.c_str());
         }
     }
-    NM_INFO("\n");
+    K_INFO("\n");
 }
 
