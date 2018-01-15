@@ -17,10 +17,6 @@
 		}							\
 	} while (0)
 
-static pthread_attr_t attr;
-static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
 Proxy::Proxy()
 {
     request = NULL;
@@ -36,12 +32,27 @@ Proxy::~Proxy()
 int Proxy::init(void)
 {
     if(pthread_attr_init(&attr) != 0)
-        return -1;    
+        return -1;
+
+    if(pthread_cond_init(&cond, NULL) != 0)
+    {
+        pthread_attr_destroy(&attr);
+        return -1;
+    }
+    
+    if(pthread_mutex_init(&mutex, NULL) != 0)
+    {
+        pthread_attr_destroy(&attr);
+        pthread_cond_destroy(&cond);
+        return -1;
+    }
     return 0;
 }
 
 void Proxy::destroy(void)
 {
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&cond);
     pthread_attr_destroy(&attr);
 }
 

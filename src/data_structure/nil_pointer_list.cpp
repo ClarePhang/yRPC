@@ -5,7 +5,6 @@
  * Email : konishi5202@163.com
  */
 #include <stdio.h>
-#include <list>
 
 using namespace std;
 
@@ -15,9 +14,6 @@ using namespace std;
 #define K_INFO    printf
 #define K_WARN    printf
 #define K_ERROR   printf
-
-static list<void *> nilp_list;
-static list<void *>::iterator it;
 
 NILPointerList::NILPointerList()
 {

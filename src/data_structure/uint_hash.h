@@ -7,6 +7,9 @@
 
 #ifndef UINT_HASH_H__
 #define UINT_HASH_H__
+#include <map>
+
+typedef map<unsigned int, void *>UINT_MAP;
 
 class INTHash
 {
@@ -24,6 +27,10 @@ public:
     void remove(void *value);
     int insert(unsigned int &key, void *value);
     int change(unsigned int &key, void *value);
+    
+private:    
+    UINT_MAP uint_map;
+    UINT_MAP::iterator it;
 };
 
 #endif // UINT_HASH_H__

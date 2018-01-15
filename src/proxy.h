@@ -27,6 +27,9 @@ public:
 private:
     void *request;
     void *response;
+    pthread_attr_t attr;
+    pthread_cond_t cond;
+    pthread_mutex_t mutex;
 };
 
 #endif // PROXY_H__

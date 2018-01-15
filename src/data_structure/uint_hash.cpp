@@ -5,7 +5,6 @@
  * Email : konishi5202@163.com
  */
 #include <stdio.h>
-#include <map>
 
 using namespace std;
 
@@ -15,11 +14,6 @@ using namespace std;
 #define K_INFO    printf
 #define K_WARN    printf
 #define K_ERROR   printf
-
-typedef map<unsigned int, void *>UINT_MAP;
-
-static UINT_MAP uint_map;
-static UINT_MAP::iterator it;
 
 INTHash::INTHash()
 {

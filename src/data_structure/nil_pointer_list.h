@@ -6,6 +6,7 @@
  */
 #ifndef NIL_POINTER_LIST_H__
 #define NIL_POINTER_LIST_H__
+#include <list>
 
 class NILPointerList
 {
@@ -20,6 +21,10 @@ public:
     void *find(void *addr);
     int insert(void *addr);
     int remove(void *addr);
+
+private:
+    list<void *> nilp_list;
+    list<void *>::iterator it;
 };
 
 #endif // NIL_POINTER_LIST_H__

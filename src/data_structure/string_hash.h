@@ -7,7 +7,10 @@
 
 #ifndef STRING_HASH_H__
 #define STRING_HASH_H__
+#include <map>
 #include <string>
+
+typedef map<string, void *>STRING_MAP;
 
 class StringHash
 {
@@ -25,6 +28,10 @@ public:
     void remove(void *value);
     int insert(const string &key, void *value);
     int change(const string &key, void *value);
+
+private:
+    STRING_MAP string_map;
+    STRING_MAP::iterator it;
 };
 
 #endif // STRING_HASH_H__

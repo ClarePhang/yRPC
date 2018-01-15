@@ -5,7 +5,6 @@
  * Email : konishi5202@163.com
  */
 #include <stdio.h>
-#include <map>
 
 using namespace std;
 
@@ -15,11 +14,6 @@ using namespace std;
 #define K_INFO    printf
 #define K_WARN    printf
 #define K_ERROR   printf
-
-typedef map<string, void *>STRING_MAP;
-
-static STRING_MAP string_map;
-static STRING_MAP::iterator it;
 
 StringHash::StringHash()
 {
