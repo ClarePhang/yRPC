@@ -4,3 +4,6 @@
 [submodule "third_repo/threadpool"]
 	path = third_repo/threadpool
 	url = git@github.com:AaronKonishi/ythreadpool.git
+[submodule "third_repo/libevent"]
+	path = third_repo/libevent
+	url = git@github.com:AaronKonishi/libevent.git
