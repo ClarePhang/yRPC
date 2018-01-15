@@ -7,18 +7,20 @@
 
 #ifndef SOCKET_BASE_H__
 #define SOCKET_BASE_H__
-#include <pthread.h>
 
-class SocketBaseOpt
-{
-public:
-    SocketBaseOpt(){};
-    ~SocketBaseOpt(){};
-    
-public:
-    int initSockaddr(struct sockaddr_un &s_addr, const char *path);
-    int initSockaddr(struct sockaddr_in &s_addr, const char *ip, unsigned int port);
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define EXTERN  extern
+#define STATIC  static
+
+EXTERN int initLSocketAddr(struct sockaddr_un &s_addr, const char *path);
+EXTERN int initNSocketAddr(struct sockaddr_in &s_addr, const char *ip, unsigned int port);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // SOCKET_BASE_H__
 
