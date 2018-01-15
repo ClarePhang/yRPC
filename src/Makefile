@@ -10,9 +10,9 @@ all:
 	cd ./libinifile/ && make
 	cd ./libthreadpool && make
 	cd ./data_structure/ && make
+	g++ proxy.cpp -c -o proxy.o -fPIC -Wall
 	#g++ ./message/message.cpp -c -o ./message/message.o -fPIC -Wall
 	#g++ ./message/bodydata.cpp -c -o ./message/bodydata.o -fPIC -Wall
-	#g++ rpc_proxy.cpp -c -o rpc_proxy.o -fPIC -Wall
 	#g++ rpc.cpp -c -o rpc.o $(INC) -fPIC -Wall
 	#ar cr librpc.a *.o ./libevent/*.o ./libinifile/*.o ./message/*.o
 	#g++ -shared -o librpc.so *.o ./libevent/*.o ./libinifile/*.o ./message/*.o
