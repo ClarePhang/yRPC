@@ -4,26 +4,15 @@
  * Author: Konishi
  * Email : konishi5202@163.com
  */
-
 #ifndef THREADPOOL_H__
 #define THREADPOOL_H__
 
-// dynamic thread will exit after 15 second sleep
-#define DYNA_THREAD_WAIT_TIME       15
-#define MANAGER_THREAD_CHECK_TIME   3
-#define THREAD_DEFAULT_STACK_SIZE   512
+//#define USING_THREAD_PRIORITY
 
 enum ThreadPoolPriority{
     LowPriority = 1,
     HighPriority = 0,
 };
-
-typedef struct worker{
-    void (*routine)(void *arg);
-    void *arg;
-    void (*release)(void *args);
-    struct worker *next;
-}ThreadPoolWorker;
 
 class ThreadPool
 {
@@ -39,33 +28,10 @@ public:
     int getCurThreadSize(void);
 
 private:
-    static void *fixThreadRoutine(void *arg);
-    static void *dynThreadRoutine(void *arg);
-    static void *threadpoolManager(void *arg);
-
-private:
-    static void addThreadNum(void);
-    static void subThreadNum(void);
-    static void setThreadPriority(int priority);
-
-private:
     int max_queue_size;
     int fix_thread_size;
     pthread_t *thread_id;
     pthread_t manager_id;
-    
-private:
-    static int max_thread_size;
-    static pthread_attr_t thread_attr;
-    static pthread_cond_t thread_cond;
-    static pthread_mutex_t thread_mutex;
-    static pthread_mutex_t queue_mutex;
-    static volatile int low_queue_num;
-    static volatile int high_queue_num;
-    static volatile int cur_thread_num;
-    static volatile bool shut_down_flag;
-    static ThreadPoolWorker *low_queue_head;
-    static ThreadPoolWorker *high_queue_head;
 };
 
 #endif 
