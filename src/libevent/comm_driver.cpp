@@ -43,9 +43,6 @@
         }                                                       \
     } while (0)
 
-#ifdef __cplusplus
-        extern "C" {
-#endif
 #define STATIC  static
 
 STATIC bool cycle_check_flag = false;
@@ -271,10 +268,6 @@ STATIC void *comm_accept_threading(void *arg)
     K_INFO("COMM : accept event-loop exit.\n");
     pthread_exit(NULL);
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 void RPCComm::version(void)
 {
