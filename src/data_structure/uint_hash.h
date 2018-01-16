@@ -13,11 +13,11 @@ using namespace std;
 
 typedef map<unsigned int, void *>UINT_MAP;
 
-class INTHash
+class UINTHash
 {
 public:
-    INTHash();
-    ~INTHash();
+    UINTHash();
+    ~UINTHash();
 
 public:
     void print(void);

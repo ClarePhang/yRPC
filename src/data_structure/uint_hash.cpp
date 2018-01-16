@@ -13,45 +13,45 @@
 #define K_WARN    printf
 #define K_ERROR   printf
 
-INTHash::INTHash()
+UINTHash::UINTHash()
 {
     uint_map.clear();
 }
 
-INTHash::~INTHash()
+UINTHash::~UINTHash()
 {
     uint_map.clear();
 }
 
-void INTHash::print(void)
+void UINTHash::print(void)
 {
     K_INFO("Hash Table:\n");
     for(it = uint_map.begin(); it != uint_map.end(); it++)
         K_INFO("%d => %p\n", it->first, it->second);
 }
 
-int INTHash::size(void)
+int UINTHash::size(void)
 {
     return uint_map.size();
 }
 
-void INTHash::clear(void)
+void UINTHash::clear(void)
 {
     uint_map.clear();
 }
 
-bool INTHash::empty(void)
+bool UINTHash::empty(void)
 {
     return uint_map.empty();
 }
 
-void *INTHash::find(unsigned int &key)
+void *UINTHash::find(unsigned int &key)
 {
     it = uint_map.find(key);
     return (it == uint_map.end()) ? NULL : it->second;
 }
 
-int INTHash::remove(unsigned int &key)
+int UINTHash::remove(unsigned int &key)
 {
     it = uint_map.find(key);
     if(it == uint_map.end())
@@ -60,7 +60,7 @@ int INTHash::remove(unsigned int &key)
     return 0;
 }
 
-void INTHash::remove(void *value)
+void UINTHash::remove(void *value)
 {
     for(it = uint_map.begin(); it != uint_map.end(); it++)
     {
@@ -72,7 +72,7 @@ void INTHash::remove(void *value)
     }
 }
 
-int INTHash::insert(unsigned int &key, void *value)
+int UINTHash::insert(unsigned int &key, void *value)
 {
     it = uint_map.find(key);
     if(it != uint_map.end()) // exsit
@@ -83,7 +83,7 @@ int INTHash::insert(unsigned int &key, void *value)
     return 0;
 }
 
-int INTHash::change(unsigned int &key, void *value)
+int UINTHash::change(unsigned int &key, void *value)
 {
     it = uint_map.find(key);
     if(it == uint_map.end()) // not exsit
