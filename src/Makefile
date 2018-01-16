@@ -14,7 +14,7 @@ all:
 	cd ./data_structure/ && make
 	g++ proxy.cpp -c -o proxy.o -fPIC -Wall
 	g++ rpc.cpp -c -o rpc.o $(INC) -fPIC -Wall
-	g++ -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libinifile/*.o ./libinifile/lib_linux/*.o ./libthreadpool/lib_linux/*.o ./data_structure/*.o
+	g++ -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_linux/*.a ./libinifile/*.o ./libinifile/lib_linux/*.o ./libthreadpool/lib_linux/*.o ./data_structure/*.o
 	strip librpc.so
 
 HCC += arm-none-linux-gnueabi-g++
@@ -29,7 +29,7 @@ arm:
 	cd ./data_structure/ && make arm
 	$(HCC) $(HCFLAGS) -fPIC proxy.cpp -c -o proxy.o -Wall
 	$(HCC) $(HCFLAGS) -fPIC rpc.cpp -c -o rpc.o $(INC) -Wall
-	$(HCC) $(HCFLAGS) -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libinifile/*.o ./libinifile/lib_arm/*.o ./libthreadpool/lib_arm/*.o ./data_structure/*.o
+	$(HCC) $(HCFLAGS) -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_arm/*.a ./libinifile/*.o ./libinifile/lib_arm/*.o ./libthreadpool/lib_arm/*.o ./data_structure/*.o
 	$(STRIP) librpc.so
 
 clean:

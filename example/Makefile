@@ -1,15 +1,27 @@
 
-INC += -I../depend/
-INC += -I../depend/libevent/include/
+INC += -I../src/
+INC += -I../src/message/
+INC += -I../src/data_structure/
+INC += -I../src/libthreadpool/include/
+INC += -I../src/libevent/
+INC += -I../src/libevent/include/
+INC += -I../src/libinifile/
+INC += -I../src/libinifile/include/
 
-LIB += -lrpc
-LIB += -lpthread -levent_pthreads
-LIB += -L../depend/
-LIB += -L../depend/libevent/lib -levent
+LIB += -lpthread
+LIB += -L../src/ -lrpc
+
+HCC += arm-none-linux-gnueabi-g++
+HCFLAGS += -march=armv7-a -mthumb-interwork -mfloat-abi=hard -mfpu=neon -mtune=cortex-a9
 
 all:
-	g++ hash_test.cpp -o hash_test $(INC) $(LIB) -Wall
-	g++ list_test.cpp -o list_test $(INC) $(LIB) -Wall
-	g++ server_test.cpp -o server $(INC) $(LIB) -Wall
-	g++ client_test.cpp -o client $(INC) $(LIB) -Wall
-	g++ thread_test.cpp -o thread $(INC) $(LIB) -Wall
+	g++ client.cpp app.cpp -o client $(INC) $(LIB) -Wall
+	g++ server.cpp MediaModule.cpp BTModule.cpp -o server $(INC) $(LIB) -Wall
+
+arm:
+	$(HCC) $(HCFLAGS) client.cpp app.cpp -o client $(INC) $(LIB) -Wall
+	$(HCC) $(HCFLAGS) server.cpp MediaModule.cpp BTModule.cpp -o server $(INC) $(LIB) -Wall
+
+clean:
+	rm client server
+
