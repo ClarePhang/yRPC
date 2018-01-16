@@ -8,12 +8,22 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include "inifile.h"
 #include "module_config.h"
 
-#define MC_DEBUG   printf
-#define MC_INFO    printf
-#define MC_WARN    printf
-#define MC_ERROR   printf
+#define K_DEBUG   printf
+#define K_INFO    printf
+#define K_WARN    printf
+#define K_ERROR   printf
+
+#define GLOBALSECTION       "Global"
+#define FIXTHREADKEY        "FixThread"
+#define DYNTHREADKEY        "DynThread"
+#define MAXQUEUEKEY         "MaxQueue"
+#define MODULEBUILDSECTION  "ModuleBuild"
+
+using namespace inifile;
+IniFile m_inifile;
 
 ModuleConfig::ModuleConfig()
 {
@@ -31,7 +41,7 @@ int ModuleConfig::setConfigProfile(const string &path)
     
     if(path.empty())
     {
-        MC_ERROR("ModuleConfig : config-file path can not be NULL!\n");
+        K_ERROR("ModuleConfig : config-file path can not be NULL!\n");
         return -1;
     }
     
@@ -39,7 +49,7 @@ int ModuleConfig::setConfigProfile(const string &path)
     if(ret != 0)
     {
         path_init = false;
-        MC_ERROR("ModuleConfig : load %s config-file failed!\n", path.c_str());
+        K_ERROR("ModuleConfig : load %s config-file failed!\n", path.c_str());
         return -1;
     }
     
@@ -48,13 +58,55 @@ int ModuleConfig::setConfigProfile(const string &path)
     return 0;
 }
 
+int ModuleConfig::getFixThreadNum(void)
+{
+    int ret = -1;
+    int fixThread = 0;
+    
+    fixThread = m_inifile.getIntValue(string(GLOBALSECTION), string(FIXTHREADKEY),ret);
+    if(ret != 0)
+    {
+        K_ERROR("ModuleConfig : get %s:%s config failed!\n", GLOBALSECTION, FIXTHREADKEY);
+        return -1;
+    }
+    return fixThread;
+}
+
+int ModuleConfig::getDynThreadNum(void)
+{
+    int ret = -1;
+    int dynThread = 0;
+    
+    dynThread = m_inifile.getIntValue(string(GLOBALSECTION), string(DYNTHREADKEY),ret);
+    if(ret != 0)
+    {
+        K_ERROR("ModuleConfig : get %s:%s config failed!\n", GLOBALSECTION, DYNTHREADKEY);
+        return -1;
+    }
+    return dynThread;
+}
+
+int ModuleConfig::getMaxQueueNum(void)
+{
+    int ret = -1;
+    int maxQueue = 0;
+    
+    maxQueue = m_inifile.getIntValue(string(GLOBALSECTION), string(MAXQUEUEKEY),ret);
+    if(ret != 0)
+    {
+        K_ERROR("ModuleConfig : get %s:%s config failed!\n", GLOBALSECTION, MAXQUEUEKEY);
+        return -1;
+    }
+    return maxQueue;
+}
+
 int ModuleConfig::referModule(const string &module, string &process)
 {
     int ret = -1;
     
     if(!m_inifile.hasKey(MODULEBUILDSECTION, module))
     {
-        MC_INFO("ModuleConfig : does't not have %s:%s config, please check!\n", process.c_str(), module.c_str());
+        K_INFO("ModuleConfig : does't not have %s:%s config, please check!\n", process.c_str(), module.c_str());
         return -1;
     }
 
@@ -67,10 +119,10 @@ void ModuleConfig::printSection(void)
 {
     IniFile::iterator it;
 
-    MC_INFO("ModuleConfig : Section:\n");
+    K_INFO("ModuleConfig : Section:\n");
     for(it = m_inifile.begin();it != m_inifile.end(); ++it)
-        MC_INFO(" %s\n",it->first.c_str());
-    MC_INFO("\n");
+        K_INFO(" %s\n",it->first.c_str());
+    K_INFO("\n");
 }
 
 void ModuleConfig::printConfiguration(void)
@@ -78,15 +130,15 @@ void ModuleConfig::printConfiguration(void)
     IniFile::iterator it;
     IniSection::iterator iti;
     
-    MC_INFO("ModuleConfig : Configurations:\n");
+    K_INFO("ModuleConfig : Configurations:\n");
     for(it = m_inifile.begin();it != m_inifile.end(); ++it)
     {
-        MC_INFO(" %s\n",it->first.c_str());
+        K_INFO(" %s\n",it->first.c_str());
         for(iti = it->second->items.begin();iti != it->second->items.end(); ++iti)
         {
-            MC_INFO("  %s=%s\n", iti->key.c_str(), iti->value.c_str());
+            K_INFO("  %s=%s\n", iti->key.c_str(), iti->value.c_str());
         }
     }
-    MC_INFO("\n");
+    K_INFO("\n");
 }
 

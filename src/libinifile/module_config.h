@@ -7,10 +7,6 @@
 #ifndef MODULE_CONFIG_H__
 #define MODULE_CONFIG_H__
 #include <string>
-#include "inifile.h"
-using namespace inifile;
-
-#define MODULEBUILDSECTION "ModuleBuild"
 
 class ModuleConfig
 {
@@ -20,15 +16,17 @@ public:
 
 public:
     int setConfigProfile(const string &path);
+    int getFixThreadNum(void);
+    int getDynThreadNum(void);
+    int getMaxQueueNum(void);
     int referModule(const string &module, string &process);
     
-public: // for test and debug, if use change to public
+public: // for test and debug
     void printSection(void);
     void printConfiguration(void);
 
 private:
     bool path_init;
-    IniFile m_inifile;
 };
 
 #endif  //NETWORK_CONFIG_H__

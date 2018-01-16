@@ -25,19 +25,19 @@
 
 typedef int (*CommEventHandler)(unsigned int type, void *fd_ptr, void *data, size_t data_len);
 
-class RPCComm
+class COMMDriver
 {
 public:
-    RPCComm()
+    COMMDriver()
     {
         comm_main_thread_id = 0;
         comm_accept_thread_id = 0;
-    };
-    ~RPCComm()
+    }
+    ~COMMDriver()
     {
         comm_main_thread_id = 0;
         comm_accept_thread_id = 0;
-    };
+    }
 
 public:
     void version(void);
