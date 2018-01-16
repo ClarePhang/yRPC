@@ -12,7 +12,7 @@ arm:
 	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
 	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
 	$(HCC) $(HCFLAGS) socketbase.cpp -shared -fPIC -c -o socketbase.o -Wall
-	$(HCC) $(HCFLAGS) rpc_comm.cpp -shared -fPIC -c -o rpc_comm.o $(INC) -Wall
+	$(HCC) $(HCFLAGS) comm_driver.cpp -shared -fPIC -c -o comm_driver.o $(INC) -Wall
 	
 
 clean:

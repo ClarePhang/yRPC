@@ -10,6 +10,8 @@
 #include <map>
 #include <string>
 
+using namespace std;
+
 typedef map<string, void *>STRING_MAP;
 
 class StringHash

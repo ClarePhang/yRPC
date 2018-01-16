@@ -9,6 +9,8 @@
 #define UINT_HASH_H__
 #include <map>
 
+using namespace std;
+
 typedef map<unsigned int, void *>UINT_MAP;
 
 class INTHash

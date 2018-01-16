@@ -6,8 +6,6 @@
  */
 #include <stdio.h>
 
-using namespace std;
-
 #include "uint_hash.h"
 
 #define K_DEBUG   printf

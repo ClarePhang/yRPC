@@ -30,7 +30,7 @@
 #define K_ERROR   printf
 
 #define DEFAULT_CHECK_CYCLE     15  // check socket status every 15 second
-#define DEFAULT_COMM_TIMEOUT    1   // communication timeout 1 second
+#define DEFAULT_COMM_TIMEOUT    200 // communication timeout 200 ms
 #define DEFAULT_CONNECT_TIMEOUT 300 // default connect timeout is 300 ms
 
 #define tp_tvaddtp(tv, tp, ttp)                                 \
@@ -51,7 +51,7 @@ STATIC struct event_base *event_main_base = NULL;
 STATIC struct event_base *event_accept_base = NULL;
 STATIC struct evconnlistener *evcon_listener = NULL;
 STATIC struct timeval cycle_check_tv = {DEFAULT_CHECK_CYCLE, 0};
-STATIC struct timeval comm_timeout_tv = {DEFAULT_COMM_TIMEOUT, 0};
+STATIC struct timeval comm_timeout_tv = {0, DEFAULT_COMM_TIMEOUT*1000};
 
 STATIC pthread_cond_t comm_connect_cond = PTHREAD_COND_INITIALIZER;
 STATIC pthread_mutex_t comm_connect_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -60,6 +60,9 @@ STATIC CommEventHandler comm_event_handler_ptr = NULL;
 
 STATIC void cycle_check_handler(evutil_socket_t fd, short event, void *arg)
 {
+    if(!cycle_check_event)
+        return ;
+    
     evtimer_add(cycle_check_event, &cycle_check_tv);
     
     if(cycle_check_flag && comm_event_handler_ptr)
@@ -269,13 +272,13 @@ STATIC void *comm_accept_threading(void *arg)
     pthread_exit(NULL);
 }
 
-void RPCComm::version(void)
+void COMMDriver::version(void)
 {
     K_INFO("COMM : version: %s\n",COMM_VERSION);
     K_INFO("COMM : Third software :libevent %s\n", event_get_version());
 }
 
-void RPCComm::methods(void)
+void COMMDriver::methods(void)
 {
     const char **a = event_get_supported_methods();
     K_INFO("COMM : System supported methods:\n");
@@ -283,12 +286,12 @@ void RPCComm::methods(void)
         K_INFO(" [%d] : %s\n", i, a[i]);
 }
 
-void RPCComm::setTimeout(struct timeval &tv)
+void COMMDriver::setTimeout(struct timeval &tv)
 {
     if((tv.tv_sec == 0) && (tv.tv_usec == 0))
     {
-        comm_timeout_tv.tv_sec = DEFAULT_COMM_TIMEOUT;
-        comm_timeout_tv.tv_usec = 0;
+        comm_timeout_tv.tv_sec = 0;
+        comm_timeout_tv.tv_usec = DEFAULT_COMM_TIMEOUT*1000;
     }
     else
     {
@@ -297,7 +300,7 @@ void RPCComm::setTimeout(struct timeval &tv)
     }
 }
 
-void RPCComm::setCyclecheck(struct timeval &tv)
+void COMMDriver::setCyclecheck(struct timeval &tv)
 {
     if((tv.tv_sec == 0) && (tv.tv_usec == 0))
     {
@@ -311,14 +314,14 @@ void RPCComm::setCyclecheck(struct timeval &tv)
     }
 }
 
-void RPCComm::cyclecheckEn(bool enable)
+void COMMDriver::cyclecheckEn(bool enable)
 {
     cycle_check_flag = enable;
 }
 
 
 // para: s_addr can be a sockaddr_in or sockaddr_un, s_len is the length of it.
-int RPCComm::create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_len)
+int COMMDriver::create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_len)
 {
     char *debug_conf = NULL;
     
@@ -369,13 +372,13 @@ int RPCComm::create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_
     if(evtimer_assign(cycle_check_event, event_main_base, cycle_check_handler, NULL) < 0)
     {
         K_ERROR("COMM : assign event-timer failed!\n");
-        goto INIT_EVENT_FAILED;
+        goto MALLOC_EVENT_FAILED;
     }
 
     if(evtimer_add(cycle_check_event, &cycle_check_tv) < 0)
     {
         K_ERROR("COMM : add event-timer failed!\n");
-        return -1;
+        goto MALLOC_EVENT_FAILED;
     }
 
     comm_event_handler_ptr = handler;
@@ -388,7 +391,7 @@ int RPCComm::create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_
     if(pthread_create(&comm_accept_thread_id, NULL, comm_accept_threading, NULL) != 0)
     {
         K_ERROR("COMM : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
-        return -1;
+        goto CREATE_THREAD_FAILED;
     }
 
     K_INFO("COMM : we use %s method\n",event_base_get_method(event_accept_base));
@@ -433,7 +436,7 @@ INIT_EVENT_FAILED:
     return -1;
 }
 
-void RPCComm::destroy(void)
+void COMMDriver::destroy(void)
 {
     if(comm_accept_thread_id != 0)
     {
@@ -472,7 +475,7 @@ void RPCComm::destroy(void)
     }
 }
 
-int RPCComm::connect(struct sockaddr *s_addr, size_t s_len, struct timeval &tv, void **fdptr)
+int COMMDriver::connect(struct sockaddr *s_addr, size_t s_len, struct timeval &tv, void **fdptr)
 {
     int result = -1;
     struct timespec outtime;
@@ -526,7 +529,7 @@ CONNECT_FAILED:
     return -1;
 }
 
-void RPCComm::disconnect(void *fdptr)
+void COMMDriver::disconnect(void *fdptr)
 {
     struct bufferevent *bev = (struct bufferevent *)fdptr;
     if(bev)
@@ -536,7 +539,7 @@ void RPCComm::disconnect(void *fdptr)
     }
 }
 
-int RPCComm::send(const void *fdptr, const void *data, size_t size)
+int COMMDriver::send(const void *fdptr, const void *data, size_t size)
 {
     struct bufferevent * bev = (struct bufferevent *)fdptr;
     
