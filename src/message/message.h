@@ -17,10 +17,13 @@ extern "C" {
 #define MESSAGE_MAJOR_VERSION   0
 #define MESSAGE_MINOR_VERSION   1
 
-#define MESSAGE_HEAD_SIZE       32
-
 #define getUnsignedIntData(ptr)     ((ptr)[0]<<24 | (ptr)[1]<<16 | (ptr)[2]<<8 | (ptr)[3])
 #define getUnsignedShortData(ptr)   ((ptr)[0]<<8 | (ptr)[1])
+
+#define MESSAGE_HEAD_SIZE       32
+
+#define getMAGICNUMBER(ptr)         getUnsignedShortData(ptr)
+#define getMESSAGEHEADSIZE(ptr)     getUnsignedShortData(ptr)
 #define getMESSAGETYPE(ch)          ((MESSAGE_TYPE)(((ch)>>4) & 0xF))
 #define getSERIALIZETYPE(ch)        ((SERIALIZE_TYPE)((ch) & 0xF))
 #define getONEWAYSTATUS(ch)         ((ch) & 0x80)

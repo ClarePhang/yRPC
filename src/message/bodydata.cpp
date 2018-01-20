@@ -130,8 +130,8 @@ int BodyData::mallocBodyData(void **data, const void *send, unsigned int len)
         ptr[i] = (RECVERTAG>>8) & 0xFF;
         ptr[i+1] = RECVERTAG & 0xFF;
         ptr[i+2] = recver.size();
-        memcpy(&ptr[i+3], recver.c_str(), sender.size());
-        i += 3 + sender.size();
+        memcpy(&ptr[i+3], recver.c_str(), recver.size());
+        i += 3 + recver.size();
     }
     if(this->module.size())
     {

@@ -214,7 +214,7 @@ int getHeadFromData(MessageStr *head, const void *data)
 
     if(MESSAGE_HEAD_SIZE != head->head_size)
     {
-        MSG_ERROR("Message : version does't match!\n");
+        MSG_ERROR("Message : head size does't match!\n");
         return -1;
     }
 
