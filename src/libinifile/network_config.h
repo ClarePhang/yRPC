@@ -9,6 +9,8 @@
 #define NETWORK_CONFIG_H__
 #include <string>
 
+using namespace std;
+
 typedef struct {
     string ipaddr;
     unsigned int port;

@@ -45,13 +45,13 @@ bool UINTHash::empty(void)
     return uint_map.empty();
 }
 
-void *UINTHash::find(unsigned int &key)
+void *UINTHash::find(unsigned int key)
 {
     it = uint_map.find(key);
     return (it == uint_map.end()) ? NULL : it->second;
 }
 
-int UINTHash::remove(unsigned int &key)
+int UINTHash::remove(unsigned int key)
 {
     it = uint_map.find(key);
     if(it == uint_map.end())
@@ -72,7 +72,7 @@ void UINTHash::remove(void *value)
     }
 }
 
-int UINTHash::insert(unsigned int &key, void *value)
+int UINTHash::insert(unsigned int key, void *value)
 {
     it = uint_map.find(key);
     if(it != uint_map.end()) // exsit
@@ -83,7 +83,7 @@ int UINTHash::insert(unsigned int &key, void *value)
     return 0;
 }
 
-int UINTHash::change(unsigned int &key, void *value)
+int UINTHash::change(unsigned int key, void *value)
 {
     it = uint_map.find(key);
     if(it == uint_map.end()) // not exsit

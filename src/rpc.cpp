@@ -201,7 +201,7 @@ int HSAERPC::proxyCall(const string &module, const string &func, void *send, siz
     result = network_config.getNetworkConfig(module_process, addr);
     if(result < 0)
     {
-        RPC_ERROR("RPC : %s process does't not have ip-addr config, please check!\n", process.c_str());
+        RPC_ERROR("RPC : %s process does't not have ip-addr config, please check!\n", module_process.c_str());
         return -1;
     }
 

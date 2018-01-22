@@ -24,11 +24,11 @@ public:
     int size(void);
     void clear(void);
     bool empty(void);
-    void *find(unsigned int &key);
-    int remove(unsigned int &key);
+    void *find(unsigned int key);
+    int remove(unsigned int key);
     void remove(void *value);
-    int insert(unsigned int &key, void *value);
-    int change(unsigned int &key, void *value);
+    int insert(unsigned int key, void *value);
+    int change(unsigned int key, void *value);
     
 private:    
     UINT_MAP uint_map;

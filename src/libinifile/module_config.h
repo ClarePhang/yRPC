@@ -8,6 +8,8 @@
 #define MODULE_CONFIG_H__
 #include <string>
 
+using namespace std;
+
 class ModuleConfig
 {
 public:

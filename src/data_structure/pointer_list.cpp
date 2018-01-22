@@ -8,39 +8,39 @@
 
 using namespace std;
 
-#include "nil_pointer_list.h"
+#include "pointer_list.h"
 
 #define K_DEBUG   printf
 #define K_INFO    printf
 #define K_WARN    printf
 #define K_ERROR   printf
 
-NILPointerList::NILPointerList()
+PointerList::PointerList()
 {
     nilp_list.clear();
 }
 
-NILPointerList::~NILPointerList()
+PointerList::~PointerList()
 {
     nilp_list.clear();
 }
 
-int NILPointerList::size(void)
+int PointerList::size(void)
 {
     return nilp_list.size();
 }
 
-void NILPointerList::clear(void)
+void PointerList::clear(void)
 {
     nilp_list.clear();
 }
 
-bool NILPointerList::empty(void)
+bool PointerList::empty(void)
 {
     return nilp_list.empty();
 }
 
-void *NILPointerList::find(void *addr)
+void *PointerList::find(void *addr)
 {
     for(it = nilp_list.begin(); it != nilp_list.end(); it++)
     {
@@ -51,7 +51,7 @@ void *NILPointerList::find(void *addr)
     return NULL;
 }
 
-int NILPointerList::insert(void *addr)
+int PointerList::insert(void *addr)
 {
     nilp_list.push_back(addr);
 //    nilp_list.push_front(addr);
@@ -60,7 +60,7 @@ int NILPointerList::insert(void *addr)
     return 0;
 }
 
-int NILPointerList::remove(void *addr)
+int PointerList::remove(void *addr)
 {
     nilp_list.remove(addr);
     return 0;
