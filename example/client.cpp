@@ -1,28 +1,36 @@
 #include <string>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/time.h>
 
-#include "rpc.h"
 #include "app.h"
+#include "rpc_core.h"
 
 int main(int argc, char *argv[])
 {
     APPView app;
-    HSAERPC server;
     int result = -1;
+    RPCCore *server = NULL;
 
-    server.setProcessName(argv[0]);
-    server.setConfigPath(string("../conf/network_building.conf"), "../conf/module_building.conf");
+    server = RPCCore::getInstance();
+    if(NULL == server)
+    {
+        printf("malloc RPC core failed!\n");
+        return -1;
+    }
     
-    server.start();
-    result = app.startBussiness(&server);
+    server->setProcessName(argv[0]);
+    server->setConfigProfile(string("../conf/network_building.conf"), "../conf/module_building.conf");
+    
+    server->start();
+    result = app.startBussiness(server);
 
     if(result < 0)
-        server.runUntilAskedToQuit(false);
+        server->runUntilAskedToQuit(false);
     else
-        server.runUntilAskedToQuit(true);
+        server->runUntilAskedToQuit(true);
 
     return 0;
 }

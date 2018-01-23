@@ -8,7 +8,7 @@
 #define MEDIAMODULE_H__
 #include <string>
 
-#include "rpc.h"
+#include "rpc_core.h"
 
 using namespace std;
 
@@ -21,7 +21,7 @@ public:
     ~MediaModule();
 
 public:
-    void setRPC(HSAERPC *rpc);
+    void setRPC(RPCCore *rpc);
     static void mediaPlay(void *arg);
     static void mediaStop(void *arg);
     static void mediaPrev(void *arg);
@@ -29,7 +29,7 @@ public:
 
 private:
     string m_name;
-    static HSAERPC *m_rpc;
+    static RPCCore *m_rpc;
 };
 
 #endif // MEDIAMODULE_H__

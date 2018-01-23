@@ -8,7 +8,7 @@
 #include <string.h>
 #include "BTModule.h"
 
-HSAERPC *BTModule::m_rpc = NULL;
+RPCCore *BTModule::m_rpc = NULL;
 
 BTModule::BTModule()
 {
@@ -21,7 +21,7 @@ BTModule::~BTModule()
     m_name.clear();
 }
 
-void BTModule::setRPC(HSAERPC *rpc)
+void BTModule::setRPC(RPCCore *rpc)
 {
     m_rpc = rpc;
 }
@@ -32,7 +32,7 @@ void BTModule::btPlay(void *arg)
     
     printf("BT music start play.\n");
     
-    m_rpc->setResponseMsg(arg, response, strlen(response));
+    m_rpc->setResponse(arg, response, strlen(response));
 }
 
 void BTModule::btStop(void *arg)
@@ -41,7 +41,7 @@ void BTModule::btStop(void *arg)
     
     printf("BT music stop play.\n");
     
-    m_rpc->setResponseMsg(arg, response, strlen(response));
+    m_rpc->setResponse(arg, response, strlen(response));
 }
 
 void BTModule::btPrev(void *arg)
@@ -50,7 +50,7 @@ void BTModule::btPrev(void *arg)
     
     printf("Switch previous BT music.\n");
     
-    m_rpc->setResponseMsg(arg, response, strlen(response));
+    m_rpc->setResponse(arg, response, strlen(response));
 }
 
 void BTModule::btNext(void *arg)
@@ -59,6 +59,6 @@ void BTModule::btNext(void *arg)
     
     printf("Switch next BT music.\n");
 
-    m_rpc->setResponseMsg(arg, response, strlen(response));
+    m_rpc->setResponse(arg, response, strlen(response));
 }
 

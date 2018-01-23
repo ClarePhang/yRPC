@@ -9,7 +9,7 @@
 #include "bodydata.h"
 #include "MediaModule.h"
 
-HSAERPC *MediaModule::m_rpc = NULL;
+RPCCore *MediaModule::m_rpc = NULL;
 
 MediaModule::MediaModule()
 {
@@ -22,7 +22,7 @@ MediaModule::~MediaModule()
     m_name.clear();
 }
 
-void MediaModule::setRPC(HSAERPC *rpc)
+void MediaModule::setRPC(RPCCore *rpc)
 {
     m_rpc = rpc;
 }
@@ -34,7 +34,7 @@ void MediaModule::mediaPlay(void *arg)
     
     printf("Media start play, count = %u.\n", count);
     
-    m_rpc->setResponseMsg(arg, response, strlen(response));
+    m_rpc->setResponse(arg, response, strlen(response));
 }
 
 void MediaModule::mediaStop(void *arg)
@@ -43,7 +43,7 @@ void MediaModule::mediaStop(void *arg)
     
     //printf("Media stop play.\n");
     count++;
-    m_rpc->setResponseMsg(arg, response, strlen(response));
+    m_rpc->setResponse(arg, response, strlen(response));
 }
 
 void MediaModule::mediaPrev(void *arg)
@@ -52,7 +52,7 @@ void MediaModule::mediaPrev(void *arg)
     
     printf("Switch previous media.\n");
 
-    m_rpc->setResponseMsg(arg, response, strlen(response));
+    m_rpc->setResponse(arg, response, strlen(response));
 }
 
 void MediaModule::mediaNext(void *arg)
@@ -61,6 +61,6 @@ void MediaModule::mediaNext(void *arg)
     
     printf("Switch next media.\n");
 
-    m_rpc->setResponseMsg(arg, response, strlen(response));
+    m_rpc->setResponse(arg, response, strlen(response));
 }
 

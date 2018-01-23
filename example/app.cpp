@@ -12,7 +12,7 @@
 #include <sys/time.h>
 #include "app.h"
 
-HSAERPC *APPView::m_rpc = NULL;
+RPCCore *APPView::m_rpc = NULL;
 
 APPView::APPView()
 {
@@ -27,7 +27,7 @@ APPView::~APPView()
     m_name.clear();
 }
 
-int APPView::startBussiness(HSAERPC *rpc)
+int APPView::startBussiness(RPCCore *rpc)
 {
     m_rpc = rpc;
     if(pthread_create(&thread_id, NULL, appBusiness, NULL) != 0)
@@ -52,6 +52,7 @@ REPEAT:
     //printf("\nCall Media service once:\n");
 
     m_rpc->proxyCall(string("MediaModule"), string("mediaPlay"), (void *)send, strlen(send)+1, (void *)recv, recvlen);
+    printf("Remote calling return:%s\n", recv);
     
     gettimeofday(&start, NULL);
 
