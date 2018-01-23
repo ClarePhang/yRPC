@@ -51,6 +51,9 @@ public:
     int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t &rlen);
     int start(void);
     int runUntilAskedToQuit(bool state);
+
+public:
+    static void getUserData(void *msg, void **data_ptr, size_t *data_len);
     
 private:
     RPCCore();

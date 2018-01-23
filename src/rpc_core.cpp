@@ -507,6 +507,12 @@ int RPCCore::runUntilAskedToQuit(bool state)
     exit(0);
 }
 
+void RPCCore::getUserData(void *msg, void **data_ptr, size_t *data_len)
+{
+    Message *message = (Message *)msg;
+    message->getUserData(data_ptr , data_len);
+}
+
 void RPCCore::addSendWorker(void *worker)
 {
     pthread_mutex_lock(&m_send_mutex);

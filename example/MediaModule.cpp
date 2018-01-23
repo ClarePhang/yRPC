@@ -6,7 +6,7 @@
  */
 #include <stdio.h>
 #include <string.h>
-#include "bodydata.h"
+
 #include "MediaModule.h"
 
 RPCCore *MediaModule::m_rpc = NULL;
@@ -30,8 +30,13 @@ static unsigned int count = 0;
 
 void MediaModule::mediaPlay(void *arg)
 {
+    size_t data_len;
+    void *data_ptr = NULL;
     char *response = (char *)"Media is playing.";
+
+    RPCCore::getUserData(arg, &data_ptr, &data_len);
     
+    printf("Receive request : %s\n", (char *)data_ptr);
     printf("Media start play, count = %u.\n", count);
     
     m_rpc->setResponse(arg, response, strlen(response));
