@@ -18,12 +18,15 @@ public:
     int size(void);
     void clear(void);
     bool empty(void);
+    void *begin(void);
+    void *next(void);
+    bool hasNext(void);
     void *find(void *addr);
     int insert(void *addr);
     int remove(void *addr);
 
 private:
-    list<void *> nilp_list;
+    list<void *> m_list;
     list<void *>::iterator it;
 };
 

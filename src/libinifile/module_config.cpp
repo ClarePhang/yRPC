@@ -37,7 +37,7 @@ ModuleConfig::~ModuleConfig()
 
 int ModuleConfig::setConfigProfile(const string &path)
 {
-    int ret = -1;
+    int result = -1;
     
     if(path.empty())
     {
@@ -45,8 +45,8 @@ int ModuleConfig::setConfigProfile(const string &path)
         return -1;
     }
     
-    ret = m_inifile.load(path);
-    if(ret != 0)
+    result = m_inifile.load(path);
+    if(result != 0)
     {
         path_init = false;
         K_ERROR("ModuleConfig : load %s config-file failed!\n", path.c_str());
@@ -60,11 +60,11 @@ int ModuleConfig::setConfigProfile(const string &path)
 
 int ModuleConfig::getFixThreadNum(void)
 {
-    int ret = -1;
+    int result = -1;
     int fixThread = 0;
     
-    fixThread = m_inifile.getIntValue(string(GLOBALSECTION), string(FIXTHREADKEY),ret);
-    if(ret != 0)
+    fixThread = m_inifile.getIntValue(string(GLOBALSECTION), string(FIXTHREADKEY),result);
+    if(result != 0)
     {
         K_ERROR("ModuleConfig : get %s:%s config failed!\n", GLOBALSECTION, FIXTHREADKEY);
         return -1;
@@ -74,11 +74,11 @@ int ModuleConfig::getFixThreadNum(void)
 
 int ModuleConfig::getDynThreadNum(void)
 {
-    int ret = -1;
+    int result = -1;
     int dynThread = 0;
     
-    dynThread = m_inifile.getIntValue(string(GLOBALSECTION), string(DYNTHREADKEY),ret);
-    if(ret != 0)
+    dynThread = m_inifile.getIntValue(string(GLOBALSECTION), string(DYNTHREADKEY),result);
+    if(result != 0)
     {
         K_ERROR("ModuleConfig : get %s:%s config failed!\n", GLOBALSECTION, DYNTHREADKEY);
         return -1;
@@ -88,11 +88,11 @@ int ModuleConfig::getDynThreadNum(void)
 
 int ModuleConfig::getMaxQueueNum(void)
 {
-    int ret = -1;
+    int result = -1;
     int maxQueue = 0;
     
-    maxQueue = m_inifile.getIntValue(string(GLOBALSECTION), string(MAXQUEUEKEY),ret);
-    if(ret != 0)
+    maxQueue = m_inifile.getIntValue(string(GLOBALSECTION), string(MAXQUEUEKEY),result);
+    if(result != 0)
     {
         K_ERROR("ModuleConfig : get %s:%s config failed!\n", GLOBALSECTION, MAXQUEUEKEY);
         return -1;
@@ -102,7 +102,7 @@ int ModuleConfig::getMaxQueueNum(void)
 
 int ModuleConfig::referModule(const string &module, string &process)
 {
-    int ret = -1;
+    int result = -1;
     
     if(!m_inifile.hasKey(MODULEBUILDSECTION, module))
     {
@@ -110,9 +110,9 @@ int ModuleConfig::referModule(const string &module, string &process)
         return -1;
     }
 
-    ret = m_inifile.getValue(MODULEBUILDSECTION, module, process);
+    result = m_inifile.getValue(MODULEBUILDSECTION, module, process);
     
-    return ret;
+    return result;
 }
 
 void ModuleConfig::printSection(void)

@@ -17,32 +17,51 @@ using namespace std;
 
 PointerList::PointerList()
 {
-    nilp_list.clear();
+    m_list.clear();
 }
 
 PointerList::~PointerList()
 {
-    nilp_list.clear();
+    m_list.clear();
 }
 
 int PointerList::size(void)
 {
-    return nilp_list.size();
+    return m_list.size();
 }
 
 void PointerList::clear(void)
 {
-    nilp_list.clear();
+    m_list.clear();
 }
 
 bool PointerList::empty(void)
 {
-    return nilp_list.empty();
+    return m_list.empty();
+}
+
+void *PointerList::begin(void)
+{
+    it = m_list.begin();
+    return *it;
+}
+
+void *PointerList::next(void)
+{
+    return *(++it);
+}
+
+bool PointerList::hasNext(void)
+{
+    list<void *>::iterator itp = it;
+    if((++itp) == m_list.end())
+        return false;
+    return true;
 }
 
 void *PointerList::find(void *addr)
 {
-    for(it = nilp_list.begin(); it != nilp_list.end(); it++)
+    for(it = m_list.begin(); it != m_list.end(); it++)
     {
         if(addr == *it)
             return *it;
@@ -53,16 +72,16 @@ void *PointerList::find(void *addr)
 
 int PointerList::insert(void *addr)
 {
-    nilp_list.push_back(addr);
-//    nilp_list.push_front(addr);
-//    nilp_list.insert(nilp_list.begin(), addr);
-//    nilp_list.insert(nilp_list.end(), addr);
+    m_list.push_back(addr);
+//    m_list.push_front(addr);
+//    m_list.insert(m_list.begin(), addr);
+//    m_list.insert(m_list.end(), addr);
     return 0;
 }
 
 int PointerList::remove(void *addr)
 {
-    nilp_list.remove(addr);
+    m_list.remove(addr);
     return 0;
 }
 

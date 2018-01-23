@@ -39,7 +39,7 @@ NetworkConfig::~NetworkConfig()
 
 int NetworkConfig::setConfigProfile(const string &path)
 {
-    int ret = -1;
+    int result = -1;
     
     if(path.empty())
     {
@@ -47,8 +47,8 @@ int NetworkConfig::setConfigProfile(const string &path)
         return -1;
     }
     
-    ret = m_inifile.load(path);
-    if(ret != 0)
+    result = m_inifile.load(path);
+    if(result != 0)
     {
         path_init = false;
         K_ERROR("NetworkConfig : load %s config-file failed!\n", path.c_str());
@@ -69,32 +69,32 @@ int NetworkConfig::setConfigProfile(const string &path)
         return -1;
     }
     
-    return ret;
+    return result;
 }
 
 void NetworkConfig::getConnectTimeout(struct timeval *tv)
 {
-    int ret = -1;
+    int result = -1;
     int timeout = 0;
     
-    timeout = m_inifile.getIntValue(string(GLOBALSECTION), string(CONNECTTIMEOUTKEY),ret);
+    timeout = m_inifile.getIntValue(string(GLOBALSECTION), string(CONNECTTIMEOUTKEY),result);
     tv->tv_sec = timeout/1000;
     tv->tv_usec = (timeout%1000)*1000;
 }
 
 void NetworkConfig::getCommunicateTimeout(struct timeval *tv)
 {
-    int ret = -1;
+    int result = -1;
     int timeout = 0;
     
-    timeout = m_inifile.getIntValue(string(GLOBALSECTION), string(COMMTIMEOUTKEY),ret);
+    timeout = m_inifile.getIntValue(string(GLOBALSECTION), string(COMMTIMEOUTKEY),result);
     tv->tv_sec = timeout/1000;
     tv->tv_usec = (timeout%1000)*1000;
 }
 
 int NetworkConfig::getNetworkConfig(const string &section, SocketStruct &addr)
 {
-    int ret = -1;
+    int result = -1;
     
     if(!m_inifile.hasSection(section))
     {
@@ -114,8 +114,8 @@ int NetworkConfig::getNetworkConfig(const string &section, SocketStruct &addr)
         return -1;
     }
 
-    addr.ipaddr = m_inifile.getStringValue(section, string(IPKEY),ret);
-    addr.port = m_inifile.getIntValue(section, string(PORTKEY),ret);
+    addr.ipaddr = m_inifile.getStringValue(section, string(IPKEY),result);
+    addr.port = m_inifile.getIntValue(section, string(PORTKEY),result);
     
     return 0;
 }
