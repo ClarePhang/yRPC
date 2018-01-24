@@ -5,16 +5,16 @@
 #include <pthread.h>
 #include <sys/time.h>
 
+#include "rpc.h"
 #include "app.h"
-#include "rpc_core.h"
 
 int main(int argc, char *argv[])
 {
     APPView app;
     int result = -1;
-    RPCCore *server = NULL;
+    ERPC *server = NULL;
 
-    server = RPCCore::getInstance();
+    server = ERPC::getInstance();
     if(NULL == server)
     {
         printf("malloc RPC core failed!\n");

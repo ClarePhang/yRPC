@@ -9,7 +9,7 @@
 #include <string>
 #include <pthread.h>
 
-#include "rpc_core.h"
+#include "rpc.h"
 
 using namespace std;
 
@@ -22,15 +22,16 @@ public:
     ~APPView();
 
 public:
-    int startBussiness(RPCCore *rpc);
+    int startBussiness(ERPC *rpc);
 
 private:
     static void *appBusiness(void *arg);
+    static void mediaState(void *arg);
     
 private:
     string m_name;
     pthread_t thread_id;
-    static RPCCore *m_rpc;
+    static ERPC *m_rpc;
 };
 
 #endif // APP_H__

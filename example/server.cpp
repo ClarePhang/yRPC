@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 
-#include "rpc_core.h"
+#include "rpc.h"
 #include "BTModule.h"
 #include "MediaModule.h"
 
@@ -13,10 +13,10 @@ int main(int argc, char *argv[])
 {
     BTModule btmodule;
     MediaModule media;
-    RPCCore *server = NULL;
+    ERPC *server = NULL;
 
     // RPC init
-    server = RPCCore::getInstance();
+    server = ERPC::getInstance();
     if(NULL == server)
     {
         printf("malloc RPC core failed!\n");
@@ -27,18 +27,20 @@ int main(int argc, char *argv[])
     server->setConfigProfile(string("../conf/network_building.conf"), "../conf/module_building.conf");
 
     media.setRPC(server);
-    server->addService("mediaPlay", media.mediaPlay);
-    server->addService("mediaStop", media.mediaStop);
-    server->addService("mediaPrev", media.mediaPrev);
-    server->addService("mediaNext", media.mediaNext);
+    server->registerService("mediaPlay", media.mediaPlay);
+    server->registerService("mediaStop", media.mediaStop);
+    server->registerService("mediaPrev", media.mediaPrev);
+    server->registerService("mediaNext", media.mediaNext);
+    server->createObserver("mediaState");
 
     btmodule.setRPC(server);
-    server->addService("btPlay", btmodule.btPlay);
-    server->addService("btStop", btmodule.btStop);
-    server->addService("btPrev", btmodule.btPrev);
-    server->addService("btNext", btmodule.btNext);
+    server->registerService("btPlay", btmodule.btPlay);
+    server->registerService("btStop", btmodule.btStop);
+    server->registerService("btPrev", btmodule.btPrev);
+    server->registerService("btNext", btmodule.btNext);
 
     server->start();
+    media.startMedisService();
     server->runUntilAskedToQuit(true);
 
     return 0;

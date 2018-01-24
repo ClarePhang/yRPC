@@ -8,7 +8,7 @@
 #define BTMODULE_H__
 #include <string>
 
-#include "rpc_core.h"
+#include "rpc.h"
 
 using namespace std;
 
@@ -21,7 +21,7 @@ public:
     ~BTModule();
 
 public:
-    void setRPC(RPCCore *rpc);
+    void setRPC(ERPC *rpc);
     static void btPlay(void *arg);
     static void btStop(void *arg);
     static void btPrev(void *arg);
@@ -29,7 +29,7 @@ public:
 
 private:
     string m_name;
-    static RPCCore *m_rpc;
+    static ERPC *m_rpc;
 };
 
 #endif // BTMODULE_H__

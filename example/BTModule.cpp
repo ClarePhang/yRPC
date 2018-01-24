@@ -8,7 +8,7 @@
 #include <string.h>
 #include "BTModule.h"
 
-RPCCore *BTModule::m_rpc = NULL;
+ERPC *BTModule::m_rpc = NULL;
 
 BTModule::BTModule()
 {
@@ -21,7 +21,7 @@ BTModule::~BTModule()
     m_name.clear();
 }
 
-void BTModule::setRPC(RPCCore *rpc)
+void BTModule::setRPC(ERPC *rpc)
 {
     m_rpc = rpc;
 }

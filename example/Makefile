@@ -1,15 +1,8 @@
 
 INC += -I../src/
-INC += -I../src/message/
-INC += -I../src/data_structure/
-INC += -I../src/libthreadpool/include/
-INC += -I../src/libevent/
-INC += -I../src/libevent/include/
-INC += -I../src/libinifile/
-INC += -I../src/libinifile/include/
 
 LIB += -lpthread
-LIB += -L../src/ -lrpc
+LIB += -L../src -lrpc
 
 HCC += arm-none-linux-gnueabi-g++
 HCFLAGS += -march=armv7-a -mthumb-interwork -mfloat-abi=hard -mfpu=neon -mtune=cortex-a9

@@ -12,7 +12,7 @@
 #include <sys/time.h>
 #include "app.h"
 
-RPCCore *APPView::m_rpc = NULL;
+ERPC *APPView::m_rpc = NULL;
 
 APPView::APPView()
 {
@@ -27,7 +27,7 @@ APPView::~APPView()
     m_name.clear();
 }
 
-int APPView::startBussiness(RPCCore *rpc)
+int APPView::startBussiness(ERPC *rpc)
 {
     m_rpc = rpc;
     if(pthread_create(&thread_id, NULL, appBusiness, NULL) != 0)
@@ -36,8 +36,15 @@ int APPView::startBussiness(RPCCore *rpc)
     return 0;
 }
 
+void APPView::mediaState(void *arg)
+{
+    printf("\nMedia status changed!\n");
+   // return NULL;
+}
+
 void *APPView::appBusiness(void *arg)
 {
+    int result = -1;
     char recv[1024];
     float timeuse = 0.0;
     size_t recvlen = 1024;
@@ -45,21 +52,27 @@ void *APPView::appBusiness(void *arg)
     struct timeval start, end;
     char *send = (char *)"request hello world test!";
 
+    sleep(2);
+    
+    result = m_rpc->registerObserver(string("MediaModule"), "mediaState", mediaState);
+    printf("register Observer result = %d\n", result);
+
 REPEAT:
     sleep(3);
-
+    result = m_rpc->proxyCall(string("MediaModule"), string("mediaPlay"), (void *)send, strlen(send)+1, (void *)recv, &recvlen);
+    if(0 == result)
+        ;// printf("Remote calling return:%s\n", recv);
     
-    //printf("\nCall Media service once:\n");
-
-    m_rpc->proxyCall(string("MediaModule"), string("mediaPlay"), (void *)send, strlen(send)+1, (void *)recv, recvlen);
-    printf("Remote calling return:%s\n", recv);
-    
+    printf("\nCall Media service 10000 times:\n");
     gettimeofday(&start, NULL);
 
     while(true)
     {
-        m_rpc->proxyCall(string("MediaModule"), string("mediaStop"), (void *)send, strlen(send)+1, (void *)recv, recvlen);
-        //printf("Media service return :%s\n",recv);
+        result = m_rpc->proxyCall(string("MediaModule"), string("mediaStop"), (void *)send, strlen(send)+1, (void *)recv, &recvlen);
+        if(0 == result)
+            ;//printf("Media service return :%s\n",recv);
+        else
+            printf("Remote calling failed!\n");
         count++;
         if(count == 10000)
         {
@@ -72,9 +85,9 @@ REPEAT:
     timeuse = (1000000*(end.tv_sec - start.tv_sec) + (float)(end.tv_usec - start.tv_usec))/1000;
     printf("--------- timeuse:%2.03f ms ---------\n",timeuse);
     
-    m_rpc->proxyCall(string("MediaModule"), string("mediaPlay"), (void *)send, strlen(send)+1, (void *)recv, recvlen);
+    m_rpc->proxyCall(string("MediaModule"), string("mediaPlay"), (void *)send, strlen(send)+1, (void *)recv, &recvlen);
     
-    printf("\n\n once again:\n");
+    //printf("\n\n once again:\n");
     goto REPEAT;
 
     pthread_exit(NULL);

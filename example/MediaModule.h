@@ -7,8 +7,9 @@
 #ifndef MEDIAMODULE_H__
 #define MEDIAMODULE_H__
 #include <string>
+#include <pthread.h>
 
-#include "rpc_core.h"
+#include "rpc.h"
 
 using namespace std;
 
@@ -21,15 +22,20 @@ public:
     ~MediaModule();
 
 public:
-    void setRPC(RPCCore *rpc);
+    void setRPC(ERPC *rpc);
+    int startMedisService(void);
     static void mediaPlay(void *arg);
     static void mediaStop(void *arg);
     static void mediaPrev(void *arg);
     static void mediaNext(void *arg);
 
 private:
+    static void *MediaBusiness(void *arg);
+
+private:
     string m_name;
-    static RPCCore *m_rpc;
+    pthread_t thread_id;
+    static ERPC *m_rpc;
 };
 
 #endif // MEDIAMODULE_H__

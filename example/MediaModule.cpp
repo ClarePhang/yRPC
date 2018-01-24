@@ -4,12 +4,17 @@
  * Author: zhangqiyin/Konishi
  * Email : zhangqiyin@hangsheng.com.cn
  */
+#include <string>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <sys/time.h>
+
 
 #include "MediaModule.h"
 
-RPCCore *MediaModule::m_rpc = NULL;
+ERPC *MediaModule::m_rpc = NULL;
 
 MediaModule::MediaModule()
 {
@@ -22,7 +27,7 @@ MediaModule::~MediaModule()
     m_name.clear();
 }
 
-void MediaModule::setRPC(RPCCore *rpc)
+void MediaModule::setRPC(ERPC *rpc)
 {
     m_rpc = rpc;
 }
@@ -34,9 +39,9 @@ void MediaModule::mediaPlay(void *arg)
     void *data_ptr = NULL;
     char *response = (char *)"Media is playing.";
 
-    RPCCore::getUserData(arg, &data_ptr, &data_len);
+    ERPC::getUserData(arg, &data_ptr, &data_len);
     
-    printf("Receive request : %s\n", (char *)data_ptr);
+    printf("\nReceive request : %s\n", (char *)data_ptr);
     printf("Media start play, count = %u.\n", count);
     
     m_rpc->setResponse(arg, response, strlen(response));
@@ -67,5 +72,25 @@ void MediaModule::mediaNext(void *arg)
     printf("Switch next media.\n");
 
     m_rpc->setResponse(arg, response, strlen(response));
+}
+
+int MediaModule::startMedisService(void)
+{
+    if(pthread_create(&thread_id, NULL, MediaBusiness, NULL) != 0)
+        return -1;
+
+    return 0;
+}
+
+void *MediaModule::MediaBusiness(void *arg)
+{
+    while(1)
+    {
+        sleep(5);
+        printf("\nInvoke mediaSTATE\n");
+        m_rpc->invokeObserver("mediaState", NULL, 0);
+    }
+
+    pthread_exit(NULL);
 }
 
