@@ -10,10 +10,12 @@
 
 using namespace std;
 
+#define Interface class
+
 typedef void (*ServiceHandler)(void *arg);
 typedef void (*ObserverHandler)(void *arg);
 
-class ERPC
+Interface ERPC
 {
 public:
     ERPC();
