@@ -22,7 +22,8 @@ enum MESSAGE_TYPE{
     MT_LINK_PK  = 1,
     MT_BEAT_PK  = 2,
     MT_APPLY_PK = 3,
-    MT_MAX_PK   = 4
+    MT_OBSER_PK = 4,
+    MT_MAX_PK   = 5
 };
 
 enum SERIALIZE_TYPE{
@@ -89,6 +90,9 @@ public:
     void initBeatResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
     void initApplyRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
     void initApplyResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
+    void initObserverRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
+    void initObserverResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
+    void initObserverInvokeMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
     
 private:
     bool checkMagicNum(void);

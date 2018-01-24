@@ -384,6 +384,39 @@ void MessageHead::initApplyResponseMsg(struct timespec *tp, unsigned int msgID, 
     setMessageID(msgID);
 }
 
+void MessageHead::initObserverRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+{
+    setMessageType(MT_OBSER_PK);
+    setSerializeType(ST_BIN_BD);
+    setOnewayStatus(false);
+    setResponseStatus(false);
+    setTimeoutTP(tp);
+    setStatusCode(statusCode);
+    setMessageID(msgID);
+}
+
+void MessageHead::initObserverResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+{
+    setMessageType(MT_OBSER_PK);
+    setSerializeType(ST_BIN_BD);
+    setOnewayStatus(true);
+    setResponseStatus(true);
+    setTimeoutTP(tp);
+    setStatusCode(statusCode);
+    setMessageID(msgID);
+}
+
+void MessageHead::initObserverInvokeMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+{
+    setMessageType(MT_OBSER_PK);
+    setSerializeType(ST_BIN_BD);
+    setOnewayStatus(true);
+    setResponseStatus(false);
+    setTimeoutTP(tp);
+    setStatusCode(statusCode);
+    setMessageID(msgID);
+}
+
 bool MessageHead::checkMagicNum(void)
 {
     if(MESSAGE_MAGIC_NUM != m_message_head.magic)

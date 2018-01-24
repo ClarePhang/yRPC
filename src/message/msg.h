@@ -22,7 +22,10 @@ public:
     void initBeatResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
     void initApplyRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
     void initApplyResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-
+    void initObserverRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
+    void initObserverResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
+    void initObserverInvokeMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
+    
 public:
     void getMessageHeadFromData(const void *data);
     static void getMessageHeadFromData(const void *data, MessageHeadStr *msg);

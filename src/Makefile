@@ -12,8 +12,10 @@ all:
 	cd ./libinifile/ && make
 	cd ./libthreadpool && make
 	cd ./data_structure/ && make
-	g++ rpc_proxy.cpp -c -o rpc_proxy.o -fPIC -Wall
+	g++ rpc.cpp -c -o rpc.o -fPIC $(INC) -Wall
 	g++ rpc_core.cpp -c -o rpc_core.o $(INC) -fPIC -Wall
+	g++ rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -fPIC -Wall
+	g++ rpc_observer.cpp -c -o rpc_observer.o $(INC) -fPIC -Wall
 	g++ -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_linux/*.a ./libinifile/*.o ./libinifile/lib_linux/*.o ./libthreadpool/lib_linux/*.o ./data_structure/*.o
 	#strip librpc.so
 
@@ -27,8 +29,10 @@ arm:
 	cd ./libinifile/ && make arm
 	cd ./libthreadpool && make arm
 	cd ./data_structure/ && make arm
-	$(HCC) $(HCFLAGS) -fPIC rpc_proxy.cpp -c -o rpc_proxy.o -Wall
+	$(HCC) $(HCFLAGS) -fPIC rpc.cpp -c -o rpc.o $(INC) -Wall
 	$(HCC) $(HCFLAGS) -fPIC rpc_core.cpp -c -o rpc_core.o $(INC) -Wall
+	$(HCC) $(HCFLAGS) -fPIC rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -Wall
+	$(HCC) $(HCFLAGS) -fPIC rpc_observer.cpp -c -o rpc_observer.o $(INC) -Wall
 	$(HCC) $(HCFLAGS) -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_arm/*.a ./libinifile/*.o ./libinifile/lib_arm/*.o ./libthreadpool/lib_arm/*.o ./data_structure/*.o
 	#$(STRIP) librpc.so
 

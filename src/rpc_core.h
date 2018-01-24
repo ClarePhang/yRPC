@@ -7,15 +7,16 @@
 #ifndef RPC_CORE_H__
 #define RPC_CORE_H__
 #include <string>
-#include <vector>
 #include <pthread.h>
 
+#include "rpc.h"
 #include "queue.h"
 #include "uint_hash.h"
 #include "threadpool.h"
 #include "string_hash.h"
 #include "comm_driver.h"
 #include "pointer_list.h"
+#include "rpc_observer.h"
 #include "module_config.h"
 #include "network_config.h"
 
@@ -38,26 +39,32 @@ enum AnalysePackage
 };
 #endif
 
-typedef void (*ServerFunction)(void *arg);
-
-class RPCCore
+class RPCCore : public ERPC
 {
 public:
     static RPCCore *getInstance(void);
-    int setProcessName(const char *process);
-    int setConfigProfile(const string &network, const string &module);
-    int addService(const char *service, ServerFunction func);
-    int setResponse(void *msg, void *response_data, size_t response_len);
-    int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t &rlen);
-    int start(void);
-    int runUntilAskedToQuit(bool state);
+    virtual int setProcessName(const char *process);
+    virtual int setConfigProfile(const string &network, const string &module);
+    virtual int registerService(const char *service, ServiceHandler func);
+    virtual int unregisterService(const char *service);
+    virtual int setResponse(void *msg, void *response_data, size_t response_len);
+    virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen);
+    virtual int start(void);
+    virtual int runUntilAskedToQuit(bool state);
+
+public: // observer function
+    virtual int createObserver(const char *observer);
+    virtual int destroyObserver(const char *observer);
+    virtual int invokeObserver(const char *observer, void *data, size_t len);
+    virtual int registerObserver(const string &module, const char *observer, ObserverHandler func);
+    virtual int unregisterObserver(const string &module, const char *observer);
 
 public:
     static void getUserData(void *msg, void **data_ptr, size_t *data_len);
     
-private:
+public:
     RPCCore();
-    ~RPCCore();
+    virtual ~RPCCore();
 
 private:
     static void *sendThread(void *arg);
@@ -68,20 +75,23 @@ private:
     static void releaseRPCMessage(void *arg);
     static void signalHandler(int signo);
     static void addSendWorker(void *worker);
+    static int registerObserverHandler(void *fdp, void *msg);
+    static int unregisterObserverHandler(void *fdp, void *msg);
     static int analyseReceiveData(void *fdp, const void *data, size_t len);
     static int eventHandler(unsigned int type, void *fd_ptr, void *data, size_t data_len);
-
+    
 private:
     pthread_t m_send_thread_id;
 
 private:
-    static RPCCore *m_rpc;
     static string m_process;
     static bool m_run_state;
     static bool m_conf_state;
+    static RPCCore *m_rpc_core;
     static UINTHash m_proxy_hash;
     static StringHash m_func_hash;
     static COMMDriver m_comm_base;
+    static ObserverHash m_observer;
     static ThreadPool *m_threadpool;
     static struct timeval m_conn_tv;
     static struct timeval m_comm_tv;

@@ -61,6 +61,21 @@ void Message::initApplyResponseMessage(struct timespec *tp, unsigned int msgID, 
     m_message_head.initApplyResponseMsg(tp, msgID, statusCode);
 }
 
+void Message::initObserverRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+{
+    m_message_head.initObserverRequestMsg(tp, msgID, statusCode);
+}
+
+void Message::initObserverResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+{
+    m_message_head.initObserverResponseMsg(tp, msgID, statusCode);
+}
+
+void Message::initObserverInvokeMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+{
+    m_message_head.initObserverInvokeMsg(tp, msgID, statusCode);
+}
+
 void Message::getMessageHeadFromData(const void *data)
 {
     m_message_head.DeserializeMessageHead(data);
