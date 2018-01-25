@@ -16,8 +16,8 @@ all:
 	g++ rpc_core.cpp -c -o rpc_core.o $(INC) -fPIC -Wall
 	g++ rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -fPIC -Wall
 	g++ rpc_observer.cpp -c -o rpc_observer.o $(INC) -fPIC -Wall
-	g++ -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_linux/*.a ./libinifile/*.o ./libinifile/lib_linux/*.o ./libthreadpool/lib_linux/*.o ./data_structure/*.o
-	#strip librpc.so
+	g++ -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_linux/*.a ./libinifile/*.o ./libinifile/lib_linux/*.a ./libthreadpool/lib_linux/*.a ./data_structure/*.o
+	strip librpc.so
 
 HCC += arm-none-linux-gnueabi-g++
 STRIP += arm-none-linux-gnueabi-strip
@@ -33,8 +33,8 @@ imx6:
 	$(HCC) $(HCFLAGS) -fPIC rpc_core.cpp -c -o rpc_core.o $(INC) -Wall
 	$(HCC) $(HCFLAGS) -fPIC rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -Wall
 	$(HCC) $(HCFLAGS) -fPIC rpc_observer.cpp -c -o rpc_observer.o $(INC) -Wall
-	$(HCC) $(HCFLAGS) -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_imx6/*.a ./libinifile/*.o ./libinifile/lib_imx6/*.o ./libthreadpool/lib_imx6/*.o ./data_structure/*.o
-	#$(STRIP) librpc.so
+	$(HCC) $(HCFLAGS) -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_imx6/*.a ./libinifile/*.o ./libinifile/lib_imx6/*.a ./libthreadpool/lib_imx6/*.a ./data_structure/*.o
+	$(STRIP) librpc.so
 
 ACC += arm-linux-g++
 ASTRIP += arm-linux-strip
@@ -50,8 +50,8 @@ arm:
 	$(ACC) -fPIC rpc_core.cpp -c -o rpc_core.o $(INC) -Wall
 	$(ACC) -fPIC rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -Wall
 	$(ACC) -fPIC rpc_observer.cpp -c -o rpc_observer.o $(INC) -Wall
-	$(ACC) -shared -fPIC -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_arm/*.a ./libinifile/*.o ./libinifile/lib_arm/*.o ./libthreadpool/lib_arm/*.o ./data_structure/*.o
-	#$(STRIP) librpc.so
+	$(ACC) -shared -fPIC -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_arm/*.a ./libinifile/*.o ./libinifile/lib_arm/*.a ./libthreadpool/lib_arm/*.a ./data_structure/*.o
+	$(STRIP) librpc.so
 
 clean:
 	cd ./message && make clean

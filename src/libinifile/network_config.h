@@ -36,6 +36,5 @@ private:
     bool path_init;
 };
 
-
 #endif  //NETWORK_CONFIG_H__
 
