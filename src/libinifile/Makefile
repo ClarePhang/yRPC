@@ -9,11 +9,19 @@ all:
 	g++ module_config.cpp -c -o module_config.o $(INC) -fPIC -Wall
 	g++ network_config.cpp -c -o network_config.o $(INC) -fPIC -Wall
 
-arm:
+imx6:
 	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
 	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
 	$(HCC) $(HCFLAGS) module_config.cpp -shared -fPIC -c -o module_config.o $(INC) -Wall
 	$(HCC) $(HCFLAGS) network_config.cpp -shared -fPIC -c -o network_config.o $(INC) -Wall
+
+ACC += arm-linux-g++
+
+arm:
+	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
+	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
+	$(ACC) module_config.cpp -shared -fPIC -c -o module_config.o $(INC) -Wall
+	$(ACC) network_config.cpp -shared -fPIC -c -o network_config.o $(INC) -Wall
 
 clean:
 	rm *.o

@@ -8,12 +8,19 @@ all:
 	g++ socket_base.cpp -c -o socket_base.o -fPIC -Wall
 	g++ comm_driver.cpp -c -o comm_driver.o $(INC) -fPIC -Wall
 
-arm:
+imx6:
 	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
 	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
 	$(HCC) $(HCFLAGS) socket_base.cpp -shared -fPIC -c -o socket_base.o -Wall
 	$(HCC) $(HCFLAGS) comm_driver.cpp -shared -fPIC -c -o comm_driver.o $(INC) -Wall
-	
+
+ACC += arm-linux-g++
+
+arm:
+	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
+	export MGLS_LICENSE_FILE=/opt/study/MentorGraphics/license.txt
+	$(ACC) socket_base.cpp -shared -fPIC -c -o socket_base.o -Wall
+	$(ACC) comm_driver.cpp -shared -fPIC -c -o comm_driver.o $(INC) -Wall
 
 clean:
 	rm *.o

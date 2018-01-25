@@ -23,17 +23,34 @@ HCC += arm-none-linux-gnueabi-g++
 STRIP += arm-none-linux-gnueabi-strip
 HCFLAGS += -march=armv7-a -mthumb-interwork -mfloat-abi=hard -mfpu=neon -mtune=cortex-a9
 
+imx6:
+	cd ./message/ && make imx6
+	cd ./libevent/ && make imx6 
+	cd ./libinifile/ && make imx6
+	cd ./libthreadpool && make imx6
+	cd ./data_structure/ && make imx6
+	$(HCC) $(HCFLAGS) -fPIC rpc.cpp -c -o rpc.o $(INC) -Wall
+	$(HCC) $(HCFLAGS) -fPIC rpc_core.cpp -c -o rpc_core.o $(INC) -Wall
+	$(HCC) $(HCFLAGS) -fPIC rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -Wall
+	$(HCC) $(HCFLAGS) -fPIC rpc_observer.cpp -c -o rpc_observer.o $(INC) -Wall
+	$(HCC) $(HCFLAGS) -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_imx6/*.a ./libinifile/*.o ./libinifile/lib_imx6/*.o ./libthreadpool/lib_imx6/*.o ./data_structure/*.o
+	#$(STRIP) librpc.so
+
+ACC += arm-linux-g++
+ASTRIP += arm-linux-strip
+
 arm:
+	export PATH=/usr/arm-linux-gcc-v4.4.3/bin/:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 	cd ./message/ && make arm
 	cd ./libevent/ && make arm
 	cd ./libinifile/ && make arm
 	cd ./libthreadpool && make arm
 	cd ./data_structure/ && make arm
-	$(HCC) $(HCFLAGS) -fPIC rpc.cpp -c -o rpc.o $(INC) -Wall
-	$(HCC) $(HCFLAGS) -fPIC rpc_core.cpp -c -o rpc_core.o $(INC) -Wall
-	$(HCC) $(HCFLAGS) -fPIC rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -Wall
-	$(HCC) $(HCFLAGS) -fPIC rpc_observer.cpp -c -o rpc_observer.o $(INC) -Wall
-	$(HCC) $(HCFLAGS) -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_arm/*.a ./libinifile/*.o ./libinifile/lib_arm/*.o ./libthreadpool/lib_arm/*.o ./data_structure/*.o
+	$(ACC) -fPIC rpc.cpp -c -o rpc.o $(INC) -Wall
+	$(ACC) -fPIC rpc_core.cpp -c -o rpc_core.o $(INC) -Wall
+	$(ACC) -fPIC rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -Wall
+	$(ACC) -fPIC rpc_observer.cpp -c -o rpc_observer.o $(INC) -Wall
+	$(ACC) -shared -fPIC -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_arm/*.a ./libinifile/*.o ./libinifile/lib_arm/*.o ./libthreadpool/lib_arm/*.o ./data_structure/*.o
 	#$(STRIP) librpc.so
 
 clean:

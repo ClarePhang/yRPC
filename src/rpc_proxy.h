@@ -7,6 +7,7 @@
 #ifndef RPC_PROXY_H__
 #define RPC_PROXY_H__
 #include <pthread.h>
+#include <sys/time.h>
 
 class RPCProxy
 {

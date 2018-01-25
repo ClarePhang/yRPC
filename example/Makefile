@@ -1,7 +1,7 @@
 
 INC += -I../src/
 
-LIB += -lpthread
+LIB += -lpthread -lrt
 LIB += -L../src -lrpc
 
 HCC += arm-none-linux-gnueabi-g++
@@ -11,9 +11,15 @@ all:
 	g++ client.cpp app.cpp -o client $(INC) $(LIB) -Wall
 	g++ server.cpp MediaModule.cpp BTModule.cpp -o server $(INC) $(LIB) -Wall
 
-arm:
+imx6:
 	$(HCC) $(HCFLAGS) client.cpp app.cpp -o client $(INC) $(LIB) -Wall
 	$(HCC) $(HCFLAGS) server.cpp MediaModule.cpp BTModule.cpp -o server $(INC) $(LIB) -Wall
+
+ACC += arm-linux-g++
+
+arm:
+	$(ACC) client.cpp app.cpp -o client $(INC) $(LIB) -Wall
+	$(ACC) server.cpp MediaModule.cpp BTModule.cpp -o server $(INC) $(LIB) -Wall
 
 clean:
 	rm client server
