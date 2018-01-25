@@ -29,8 +29,8 @@ public:
     void remove(void *value);
     int insert(unsigned int key, void *value);
     int change(unsigned int key, void *value);
-    
-private:    
+
+private:
     UINT_MAP uint_map;
     UINT_MAP::iterator it;
 };

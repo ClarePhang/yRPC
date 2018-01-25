@@ -45,6 +45,7 @@ int RPCProxy::init(void)
         pthread_cond_destroy(&cond);
         return -1;
     }
+
     return 0;
 }
 

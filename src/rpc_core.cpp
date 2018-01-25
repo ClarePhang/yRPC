@@ -117,9 +117,9 @@ RPCCore *RPCCore::getInstance(void)
 int RPCCore::setProcessName(const char *process)
 {
     if(process[0] == '.')
-        this->m_process = &process[2];
+        m_process = &process[2];
     else
-        this->m_process = process;
+        m_process = process;
     
     return 0;
 }
@@ -128,7 +128,7 @@ int RPCCore::setConfigProfile(const string &network, const string &module)
 {
     int result = -1;
 
-    if(0 == this->m_process.size())
+    if(0 == m_process.size())
     {
         K_ERROR("RPC : please set process name first!\n");
         return -1;
@@ -140,7 +140,7 @@ int RPCCore::setConfigProfile(const string &network, const string &module)
     if(result == 0)
         m_conf_state = true;
     
-    return 0;
+    return result;
 }
 
 int RPCCore::registerService(const char *service, ServiceHandler func)
@@ -468,6 +468,7 @@ int RPCCore::start(void)
     if(pthread_create(&m_send_thread_id, NULL, sendThread, NULL) != 0)
     {
         m_run_state = false;
+        m_comm_base.destroy();
         K_ERROR("RPC : %s: pthread_create failed, errno:%d,error:%s.\n", __FUNCTION__, errno, strerror(errno));
         return -1;
     }
@@ -1461,26 +1462,26 @@ REPEAT_ANALYSE:
 #endif
 }
 
-int RPCCore::eventHandler(unsigned int type, void *fd_ptr, void *data, size_t data_len)
+int RPCCore::eventHandler(unsigned int type, void *fdp, void *data, size_t len)
 {
     switch(type)
     {
         case COMMEventRecv:
-            if(data_len)
-                analyseReceiveData(fd_ptr, data, data_len);
+            if(len)
+                analyseReceiveData(fdp, data, len);
             break;
             
         case COMMEventSend:
             break;
             
         case COMMEventConnect:
-            m_connect_list.insert(fd_ptr);
+            m_connect_list.insert(fdp);
             break;
 
         case COMMEventDisconnect:
-            m_connect_list.remove(fd_ptr);
-            m_connect_hash.remove(fd_ptr);
-            m_observer.remove(fd_ptr);
+            m_connect_list.remove(fdp);
+            m_connect_hash.remove(fdp);
+            m_observer.remove(fdp);
             break;
 
         case COMMEventCheck:

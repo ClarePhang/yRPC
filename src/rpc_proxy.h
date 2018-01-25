@@ -33,4 +33,4 @@ private:
     pthread_mutex_t mutex;
 };
 
-#endif // PROXY_H__
+#endif // RPC_PROXY_H__

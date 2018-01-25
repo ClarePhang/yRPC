@@ -62,7 +62,7 @@ public: // observer function
 public:
     static void getUserData(void *msg, void **data_ptr, size_t *data_len);
     
-public:
+private:
     RPCCore();
     virtual ~RPCCore();
 
@@ -78,7 +78,7 @@ private:
     static int registerObserverHandler(void *fdp, void *msg);
     static int unregisterObserverHandler(void *fdp, void *msg);
     static int analyseReceiveData(void *fdp, const void *data, size_t len);
-    static int eventHandler(unsigned int type, void *fd_ptr, void *data, size_t data_len);
+    static int eventHandler(unsigned int type, void *fdp, void *data, size_t len);
     
 private:
     pthread_t m_send_thread_id;
