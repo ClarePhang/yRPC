@@ -39,7 +39,7 @@ enum AnalysePackage
 };
 #endif
 
-class RPCCore : public ERPC
+Implements RPCCore : public ERPC
 {
 public:
     static RPCCore *getInstance(void);

@@ -20,7 +20,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#include "msg.h"
+#include "message.h"
 #include "rpc_core.h"
 #include "rpc_proxy.h"
 #include "socket_base.h"

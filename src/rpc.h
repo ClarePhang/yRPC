@@ -11,6 +11,7 @@
 using namespace std;
 
 #define Interface class
+#define Implements class
 
 typedef void (*ServiceHandler)(void *arg);
 typedef void (*ObserverHandler)(void *arg);

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "msg.h"
+#include "message.h"
 
 #define K_DEBUG   printf
 #define K_INFO    printf
