@@ -12,14 +12,14 @@ all:
 	g++ service.cpp MediaModuleImplement.cpp -o service $(INC) $(LIB) -Wall
 
 imx6:
-	$(HCC) $(HCFLAGS) client.cpp app.cpp -o client $(INC) $(LIB) -Wall
-	$(HCC) $(HCFLAGS) server.cpp MediaModule.cpp BTModule.cpp -o server $(INC) $(LIB) -Wall
+	$(HCC) $(HCFLAGS) app.cpp MediaModuleInterface.cpp -o app $(INC) $(LIB) -Wall
+	$(HCC) $(HCFLAGS) service.cpp MediaModuleImplement.cpp -o service $(INC) $(LIB) -Wall
 
 ACC += arm-linux-g++
 
 arm:
-	$(ACC) client.cpp app.cpp -o client $(INC) $(LIB) -Wall
-	$(ACC) server.cpp MediaModule.cpp BTModule.cpp -o server $(INC) $(LIB) -Wall
+	$(ACC) app.cpp MediaModuleInterface.cpp -o app $(INC) $(LIB) -Wall
+	$(ACC) service.cpp MediaModuleImplement.cpp -o service $(INC) $(LIB) -Wall
 
 clean:
 	rm app service
