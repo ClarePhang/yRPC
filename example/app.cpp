@@ -10,12 +10,36 @@
 
 MediaModule media;
 
+void stateChange(void *data, size_t len)
+{
+    if(data)
+        printf("stateChanged : %s\n", (char *)data);
+    else
+        printf("state changed.\n");
+}
+
 void *business_thread(void *arg)
 {
+    int result = -1;
+    
+    sleep(1);
+
+    media.mediaControl(playMedia, 9);
+    
+    result = media.registerStateHandler(stateChange);
+    if(result == 0)
+        printf("register state change handler OK.\n");
+    else
+        printf("register state change handler failed.\n");
+    
     while(true)
     {
         sleep(10);
-        media.mediaControl(playMedia, 9);
+        result = media.mediaControl(stopMedia, 9);
+        if(result == 0)
+        {
+            printf("Control media ok\n");
+        }
     }
     
     pthread_exit(NULL);

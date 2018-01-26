@@ -12,6 +12,8 @@
 
 using namespace std;
 
+typedef void (*MediaStateChanged)(void *data, size_t len);
+
 Interface MediaModule
 {    
 public:
@@ -22,11 +24,16 @@ public:
     void setRPC(ERPC *rpc);
 
 public:
+    static int registerStateHandler(MediaStateChanged handler);
     static int mediaControl(MediaControlEnum ctl, unsigned int time);
 
 private:
+    static void mediaStateChanged(void *arg);
+    
+private:
     string m_name;
     static ERPC *m_rpc;
+    static MediaStateChanged m_observer_handler;
 };
 
 

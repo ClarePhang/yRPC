@@ -8,6 +8,7 @@
 #include "MediaModuleInterface.h"
 
 ERPC *MediaModule::m_rpc = NULL;
+MediaStateChanged MediaModule::m_observer_handler = NULL;
 
 MediaModule::MediaModule()
 {
@@ -25,6 +26,18 @@ void MediaModule::setRPC(ERPC *rpc)
     m_rpc = rpc;
 }
 
+int MediaModule::registerStateHandler(MediaStateChanged handler)
+{
+    int result = -1;
+
+    result = m_rpc->registerObserver("MediaModule", "mediaState", mediaStateChanged);
+    if(result)
+        return result;
+
+    m_observer_handler = handler;
+    return 0;
+}
+
 int MediaModule::mediaControl(MediaControlEnum ctl, unsigned int time)
 {
     int result = -1;
@@ -37,11 +50,16 @@ int MediaModule::mediaControl(MediaControlEnum ctl, unsigned int time)
     mc.control_para = time;
     SerialMediaControlStr((void *)send, &mc);
     result = m_rpc->proxyCall("MediaModule", string("mediaControl"), (void *)send, 5, (void *)recv, &recv_len);
-    if(result == 0)
-    {
-        printf("Control media ok:%d\n", (int)recv[0]);
-    }
     
     return result;
+}
+
+void MediaModule::mediaStateChanged(void *arg)
+{
+    size_t len = 0;
+    void *data_ptr = NULL;
+    len = ERPC::getUserData(arg, &data_ptr, NULL);
+    if(m_observer_handler)
+        m_observer_handler(data_ptr, len);
 }
 

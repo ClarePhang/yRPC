@@ -43,15 +43,13 @@ int MediaModule::startMedisBusiness(void)
 void MediaModule::mediaControl(void *arg)
 {
     MediaControlStr mc;
-    size_t len = 0;
     size_t data_len = 0;
     void *data_ptr = NULL;
     unsigned char response = 0;
 
-    len = ERPC::getUserData(arg, &data_ptr, &data_len);
+    ERPC::getUserData(arg, &data_ptr, &data_len);
     DeserialMediaControlStr(data_ptr, &mc);
 
-    printf("len = %lu, data_len = %lu\n", len, data_len);
     switch(mc.control_way)
     {
         case stopMedia:
