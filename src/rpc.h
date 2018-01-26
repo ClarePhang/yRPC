@@ -11,12 +11,12 @@
 using namespace std;
 
 #define Interface class
-#define Implements class
+#define Implement class
 
 typedef void (*ServiceHandler)(void *arg);
 typedef void (*ObserverHandler)(void *arg);
 
-Interface ERPC
+class ERPC
 {
 public:
     ERPC();
@@ -40,7 +40,7 @@ public: // observer function
     virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL) = 0;
 
 public:
-    static void getUserData(void *msg, void **data_ptr, size_t *data_len);
+    static size_t getUserData(void *msg, void **data_ptr, size_t *data_len);
 
 private:
     static ERPC *m_erpc;

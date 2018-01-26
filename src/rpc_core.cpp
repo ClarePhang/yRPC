@@ -655,7 +655,7 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     // send data to observer
     if(m_observer.empty(observer))
     {
-        K_INFO("RPC : observer %s list is empty.\n", observer.c_str());
+        //K_INFO("RPC : observer %s list is empty.\n", observer.c_str());
         request->releaseBodyData();
         delete (request);
         return 0;
@@ -898,10 +898,14 @@ int RPCCore::unregisterObserver(const string &module, const string &observer, st
     return result ? -1 : 0;
 }
 
-void RPCCore::getUserData(void *msg, void **data_ptr, size_t *data_len)
+size_t RPCCore::getUserData(void *msg, void **data_ptr, size_t *data_len)
 {
+    size_t len = 0;
     Message *message = (Message *)msg;
-    message->getUserData(data_ptr , data_len);
+    message->getUserData(data_ptr , &len);
+    if(data_len)
+        *data_len = len;
+    return len;
 }
 
 void RPCCore::addSendWorker(void *worker)

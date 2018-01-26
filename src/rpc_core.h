@@ -38,7 +38,7 @@ enum AnalysePackage
 };
 #endif
 
-Implements RPCCore : public ERPC
+Implement RPCCore : public ERPC
 {
 public:
     static RPCCore *getInstance(void);
@@ -58,7 +58,7 @@ public: // observer function
     virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL);
 
 public:
-    static void getUserData(void *msg, void **data_ptr, size_t *data_len);
+    static size_t getUserData(void *msg, void **data_ptr, size_t *data_len);
     
 private:
     RPCCore();
