@@ -42,23 +42,20 @@ Implements RPCCore : public ERPC
 {
 public:
     static RPCCore *getInstance(void);
-    virtual int setProcessName(const char *process);
-    virtual int setConfigProfile(const string &network, const string &module);
-    virtual int initRPC(const char *service_name);
-    virtual int initRPC(const char *service_name, const char *conf_path);
-    virtual int registerService(const char *service, ServiceHandler func);
-    virtual int unregisterService(const char *service);
+    virtual int initRPC(const string &process_name, const string &conf_path = "");
+    virtual int registerService(const string &service, ServiceHandler func);
+    virtual int unregisterService(const string &service);
     virtual int setResponse(void *msg, void *response_data, size_t response_len);
-    virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen);
+    virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen, struct timeval *tv = NULL);
     virtual int start(void);
     virtual int runUntilAskedToQuit(bool state);
 
 public: // observer function
-    virtual int createObserver(const char *observer);
-    virtual int destroyObserver(const char *observer);
-    virtual int invokeObserver(const char *observer, void *data, size_t len);
-    virtual int registerObserver(const string &module, const char *observer, ObserverHandler func);
-    virtual int unregisterObserver(const string &module, const char *observer);
+    virtual int createObserver(const string &observer);
+    virtual int destroyObserver(const string &observer);
+    virtual int invokeObserver(const string &observer, void *data, size_t len);
+    virtual int registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv = NULL);
+    virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL);
 
 public:
     static void getUserData(void *msg, void **data_ptr, size_t *data_len);

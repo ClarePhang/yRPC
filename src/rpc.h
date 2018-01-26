@@ -24,23 +24,20 @@ public:
     
 public:
     static ERPC *getInstance(void);
-    virtual int setProcessName(const char *process) = 0;
-    virtual int setConfigProfile(const string &network, const string &module) = 0;
-    virtual int initRPC(const char *service_name) = 0;
-    virtual int initRPC(const char *service_name, const char *conf_path) = 0;
-    virtual int registerService(const char *service, ServiceHandler func) = 0;
-    virtual int unregisterService(const char *service) = 0;
+    virtual int initRPC(const string &process_name, const string &conf_path = "") = 0;
+    virtual int registerService(const string &service, ServiceHandler func) = 0;
+    virtual int unregisterService(const string &service) = 0;
     virtual int setResponse(void *msg, void *response_data, size_t response_len) = 0;
-    virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen) = 0;
+    virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen, struct timeval *tv = NULL) = 0;
     virtual int start(void) = 0;
     virtual int runUntilAskedToQuit(bool state) = 0;
 
 public: // observer function
-    virtual int createObserver(const char *observer) = 0;
-    virtual int destroyObserver(const char *observer) = 0;
-    virtual int invokeObserver(const char *observer, void *data, size_t len) = 0;
-    virtual int registerObserver(const string &module, const char *observer, ObserverHandler func) = 0;
-    virtual int unregisterObserver(const string &module, const char *observer) = 0;
+    virtual int createObserver(const string &observer) = 0;
+    virtual int destroyObserver(const string &observer) = 0;
+    virtual int invokeObserver(const string &observer, void *data, size_t len) = 0;
+    virtual int registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv = NULL) = 0;
+    virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL) = 0;
 
 public:
     static void getUserData(void *msg, void **data_ptr, size_t *data_len);

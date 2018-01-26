@@ -44,7 +44,7 @@ typedef struct{
     bool one_way:1;   // 0, need back, 1, not need
     bool response:1;  // 0, request, 1, reponse
     unsigned char Reservedbit:6;  // reserver 6 bits
-    struct timespec timesp;
+    struct timeval timevl;
     unsigned int status_code:16;
     unsigned int message_id;
     unsigned char Reservedbyte[RESERVED_BYTE_NUM]; // reserver 12 bytes
@@ -74,8 +74,8 @@ public:
     bool getOnewayStatus(void);
     void setResponseStatus(bool flag);
     bool getResponseStatus(void);
-    void setTimeoutTP(struct timespec *tp);
-    struct timespec getTimeoutTP(void);
+    void setTimeoutTV(struct timeval *tv);
+    struct timeval getTimeoutTV(void);
     void setStatusCode(unsigned int code);
     unsigned int getStatusCode(void);
     void setMessageID(unsigned int id);
@@ -84,15 +84,15 @@ public:
     unsigned int getBodySize(void);
 
 public:
-    void initLinkRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initLinkResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initBeatRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initBeatResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initApplyRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initApplyResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initObserverRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initObserverResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initObserverInvokeMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
+    void initLinkRequestMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initLinkResponseMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initBeatRequestMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initBeatResponseMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initApplyRequestMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initApplyResponseMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initObserverRequestMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initObserverResponseMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initObserverInvokeMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
     
 private:
     bool checkMagicNum(void);

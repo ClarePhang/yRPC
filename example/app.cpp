@@ -56,13 +56,15 @@ void *APPView::appBusiness(void *arg)
     
     result = m_rpc->registerObserver(string("MediaModule"), "mediaState", mediaState);
     printf("register Observer result = %d\n", result);
-
-REPEAT:
-    sleep(3);
+    
     result = m_rpc->proxyCall(string("MediaModule"), string("mediaPlay"), (void *)send, strlen(send)+1, (void *)recv, &recvlen);
     if(0 == result)
         ;// printf("Remote calling return:%s\n", recv);
+    sleep(7);
+    result = m_rpc->unregisterObserver(string("MediaModule"), "mediaState");
     
+REPEAT:
+    sleep(3);
     printf("\nCall Media service 10000 times:\n");
     gettimeofday(&start, NULL);
 

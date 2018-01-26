@@ -16,26 +16,29 @@ public:
     ~Message();
 
 public:
-    void initLinkRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initLinkResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initBeatRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initBeatResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initApplyRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initApplyResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initObserverRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initObserverResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
-    void initObserverInvokeMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode);
+    void initLinkRequestMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initLinkResponseMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initBeatRequestMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initBeatResponseMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initApplyRequestMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initApplyResponseMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initObserverRequestMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initObserverResponseMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
+    void initObserverInvokeMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode);
     
 public:
     void getMessageHeadFromData(const void *data);
     static void getMessageHeadFromData(const void *data, MessageHeadStr *msg);
 
 public:
+    bool checkOnewayStatus(void);
+    void changeOnewayStatus(bool oneway);
     bool checkResponseStatus(void);
+    void changeResponseStatus(bool response);
     unsigned int getMessageID(void);
     MESSAGE_TYPE getMessageType(void);
     unsigned int getStatusCode(void);
-    struct timespec getTimeoutTP(void);
+    struct timeval getTimeoutTV(void);
     void setSender(const string &sender);
     string getSender(void);
     void setRecver(const string &recver);

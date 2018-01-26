@@ -25,6 +25,8 @@
 #include "rpc_proxy.h"
 #include "socket_base.h"
 
+using namespace std;
+
 #define K_DEBUG   printf
 #define K_INFO    printf
 #define K_WARN    printf
@@ -37,14 +39,14 @@
 
 #define CONNECTRETRYDEFAULT     3
 
-#define FIXTHREADDEFAULTNUM     5
-#define DYNTHREADDEFAULTNUM     8
+#define FIXTHREADDEFAULTNUM     3
+#define DYNTHREADDEFAULTNUM     5
 #define MAXQUEUEDEFAULTNUM      150
 
-#define TIMEOUTDEFAULTSEC       0
-#define TIMEOUTDEFAULTUSEC      30*1000
+#define TIMEOUTDEFAULTSEC       3
+#define TIMEOUTDEFAULTUSEC      (100*1000)
 
-#define OBSERVERAPPENDSTRING    "Observer"
+#define OBSERVERAPPENDSTRING    "ObserverHandler"
 #define INVOKEOBSERVERFUNC      "invokeObserverHandler"
 #define REGISTEROBSERVERFUNC    "registerObserverHandler"
 #define UNREGISTEROBSERVERFUNC  "unRegisterObserverHandler"
@@ -116,45 +118,19 @@ RPCCore *RPCCore::getInstance(void)
     return m_rpc_core;
 }
 
-int RPCCore::setProcessName(const char *process)
+int RPCCore::initRPC(const string &process_name, const string &conf_path)
 {
-    if(process[0] == '.')
-        m_process = &process[2];
-    else
-        m_process = process;
-    
-    return 0;
-}
+    int result = -1;
 
-int RPCCore::setConfigProfile(const string &network, const string &module)
-{
-    if(0 == m_process.size())
+    m_process = process_name;
+    if(m_process.empty())
     {
-        K_ERROR("RPC : please set process name first!\n");
+        K_ERROR("RPC : process name can not be empty!\n");
         return -1;
     }
     
-    return 0;
-}
-
-int RPCCore::initRPC(const char *service_name)
-{
-    return initRPC(service_name, NULL);
-}
-
-int RPCCore::initRPC(const char *service_name, const char *conf_path)
-{
-    int result = -1;
-    string c_path;
-
-    if(service_name[0] == '.')
-        m_process = &service_name[2];
-    else
-        m_process = service_name;
-
-    c_path.clear();
-    if(NULL != conf_path)
-        c_path.append(conf_path, strlen(conf_path));
+    if('.' == m_process.at(0))
+        m_process.erase(0, 2);
 
     m_conf = RPCConfig::getInstance();
     if(NULL == m_conf)
@@ -163,7 +139,7 @@ int RPCCore::initRPC(const char *service_name, const char *conf_path)
         return -1;
     }
 
-    result = m_conf->setConfigProfile(c_path);
+    result = m_conf->setConfigProfile(conf_path);
     if(0 != result)
         return -1;
 
@@ -171,13 +147,11 @@ int RPCCore::initRPC(const char *service_name, const char *conf_path)
     return 0;
 }
 
-int RPCCore::registerService(const char *service, ServiceHandler func)
+int RPCCore::registerService(const string &service, ServiceHandler func)
 {
-    string key(service);
-    
-    if(NULL == service)
+    if(service.empty())
     {
-        K_ERROR("RPC : service name can't be NULL!\n");
+        K_ERROR("RPC : service name can't be empty!\n");
         return -1;
     }
 
@@ -187,30 +161,28 @@ int RPCCore::registerService(const char *service, ServiceHandler func)
         return -1;
     }
 
-    if(NULL != m_func_hash.find(key))
+    if(NULL != m_func_hash.find(service))
     {
-        K_ERROR("RPC : %s server has been exsit!\n", service);
+        K_ERROR("RPC : %s server has been exsit!\n", service.c_str());
         return -1;
     }
-    return m_func_hash.insert(key, (void *) func);
+    return m_func_hash.insert(service, (void *) func);
 }
 
-int RPCCore::unregisterService(const char *service)
+int RPCCore::unregisterService(const string &service)
 {
-    string key(service);
-    
     if(false == m_conf_state)
     {
         K_ERROR("RPC : you must set RPC-Configuration before you use!\n");
         return -1;
     }
-    return m_func_hash.remove(key);
+    return m_func_hash.remove(service);
 }
 
 int RPCCore::setResponse(void *msg, void *response_data, size_t response_len)
 {
     int result = -1;
-    struct timespec tp;
+    struct timeval tv;
     Message *response = NULL;
     Message *request = (Message *)msg;
 
@@ -226,6 +198,13 @@ int RPCCore::setResponse(void *msg, void *response_data, size_t response_len)
         return -1;
     }
 
+    if(true == request->checkOnewayStatus())
+    {
+        K_ERROR("RPC : %s() request is a one way  calling.\n", request->getFunction().c_str());
+        K_ERROR("RPC : you can't set response data for this message.\n");
+        return -1;
+    }
+
     response = new Message();
     if(NULL == response)
     {
@@ -234,8 +213,8 @@ int RPCCore::setResponse(void *msg, void *response_data, size_t response_len)
     }
 
     /* init message head */
-    tp = request->getTimeoutTP();
-    response->initApplyResponseMessage(&tp, request->getMessageID(), RPCSUCCESS);
+    tv = request->getTimeoutTV();
+    response->initApplyResponseMessage(&tv, request->getMessageID(), RPCSUCCESS);
     /* init body head */
     response->setBodyHead(m_process, request->getSender(), request->getModule(), request->getFunction());
     /* init body data */
@@ -275,7 +254,7 @@ int RPCCore::setResponse(void *msg, void *response_data, size_t response_len)
     return 0;
 }
 
-int RPCCore::proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen)
+int RPCCore::proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen, struct timeval *tv)
 {
     string recver;
     int result = -1;
@@ -283,8 +262,8 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
     RPCProxy proxy_impl;
     Message *request = NULL;
     Message *response = NULL;
-    struct timespec tp = {0, 0};
     ProcessConfig process_config;
+    struct timeval timetv = {0, 0};
     ServiceHandler func_handler = NULL;
 
     if(false == m_run_state)
@@ -308,6 +287,18 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
         return -1;
     }
 
+    // if user not set tv, use default timeout to wait
+    if((NULL == tv) || ((0 == tv->tv_sec) && (0 == tv->tv_usec)))
+    {
+        timetv.tv_sec = m_comm_tv.tv_sec;
+        timetv.tv_usec = m_comm_tv.tv_usec;
+    }
+    else
+    {
+        timetv.tv_sec = tv->tv_sec;
+        timetv.tv_usec = tv->tv_usec;
+    }
+
     request = new Message();
     if(NULL == request)
     {
@@ -315,7 +306,7 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
         return -1;
     }
     frame = getFrameID();
-    request->initApplyRequestMessage(&tp, frame, RPCSUCCESS);
+    request->initApplyRequestMessage(&timetv, frame, RPCSUCCESS);
     request->setBodyHead(m_process, recver, module, func);
     result = request->mallocBodyData(send, slen);
     if(0 != result)
@@ -324,6 +315,12 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
         return -1;
     }
     request->updateBodySize();
+    if((NULL == recv) || (NULL == rlen) || (0 == *rlen))
+    {
+        K_WARN("RPC : you will not recv data from %s() calling.\n", func.c_str());
+        request->changeOnewayStatus(true);
+    }
+    
     if(recver == m_process) // module in current process
     {
         func_handler = (ServiceHandler)m_func_hash.find(func);
@@ -357,6 +354,11 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
         addSendWorker((void *)worker);
     }
 
+    // if this message is oneway, mean no response need to be wait
+    // here should not use request, because it will be release on other place
+    if((NULL == recv) || (NULL == rlen) || (0 == *rlen))
+        return 0;
+
     result = proxy_impl.init();
     if(0 != result)
     {
@@ -364,7 +366,7 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
         return -1;
     }
     m_proxy_hash.insert(frame, (void *)&proxy_impl);
-    result = proxy_impl.wait(m_comm_tv);
+    result = proxy_impl.wait(timetv);
     m_proxy_hash.remove(frame);
     response = (Message *)proxy_impl.getResponseMsg();
     proxy_impl.destroy();
@@ -570,13 +572,11 @@ int RPCCore::runUntilAskedToQuit(bool state)
     exit(0);
 }
 
-int RPCCore::createObserver(const char *observer)
+int RPCCore::createObserver(const string &observer)
 {
-    string key(observer);
-
-    if(NULL == observer)
+    if(observer.empty())
     {
-        K_ERROR("RPC : observer name can't be NULL!\n");
+        K_ERROR("RPC : observer name can't be empty!\n");
         return -1;
     }
 
@@ -586,39 +586,36 @@ int RPCCore::createObserver(const char *observer)
         return -1;
     }
 
-    if(NULL != m_observer.find(key))
+    if(NULL != m_observer.find(observer))
     {
-        K_ERROR("RPC : %s observer has been exsit!\n", observer);
-        return -1;
+        K_WARN("RPC : %s observer has been exsit!\n", observer.c_str());
+        return 0;
     }
     
-    return m_observer.insert(key);
+    return m_observer.insert(observer);
 }
 
-int RPCCore::destroyObserver(const char *observer)
+int RPCCore::destroyObserver(const string &observer)
 {
-    string key(observer);
-    
     if(false == m_conf_state)
     {
         K_ERROR("RPC : you must set RPC-Configuration before you use!\n");
         return -1;
     }
-    m_observer.remove(key);
+    m_observer.remove(observer);
     return 0;
 }
 
-int RPCCore::invokeObserver(const char *observer, void *data, size_t len)
+int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
 {
     int result = -1;
     unsigned int frame;
     Message *request = NULL;
-    string recver(observer);  // use for send thread find observer list
-    string module(observer);  // use for observed calling function
-    string function(INVOKEOBSERVERFUNC);  // use for observed dist functioin
-    struct timespec tp = {0, 0};
+    struct timeval tv = {0, 0};
     struct WorkerEntry *worker = NULL;
+    string observer_handler(observer);
     ServiceHandler func_handler = NULL;
+    string invoke_func(INVOKEOBSERVERFUNC);
     
     if(false == m_run_state)
     {
@@ -626,9 +623,9 @@ int RPCCore::invokeObserver(const char *observer, void *data, size_t len)
         return -1;
     }
 
-    if(NULL == m_observer.find(module))
+    if(NULL == m_observer.find(observer))
     {
-        K_ERROR("RPC : %s observer has not been exsit!\n", observer);
+        K_ERROR("RPC : %s observer has not been exsit!\n", observer.c_str());
         return -1;
     }
 
@@ -639,9 +636,8 @@ int RPCCore::invokeObserver(const char *observer, void *data, size_t len)
         return -1;
     }
     frame = getFrameID();
-    request->initObserverInvokeMessage(&tp, frame, RPCSUCCESS);
-    module.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
-    request->setBodyHead(m_process, recver, module, function);
+    request->initObserverInvokeMessage(&tv, frame, RPCSUCCESS);
+    request->setBodyHead(m_process, observer, observer, invoke_func);
     result = request->mallocBodyData(data, len);
     if(0 != result)
     {
@@ -651,14 +647,15 @@ int RPCCore::invokeObserver(const char *observer, void *data, size_t len)
     request->updateBodySize();
 
     // local observer call
-    func_handler = (ServiceHandler)m_func_hash.find(function);
+    observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
+    func_handler = (ServiceHandler)m_func_hash.find(observer_handler);
     if(NULL != func_handler)
         m_threadpool->addWork(LowPriority, func_handler, (void *)request, NULL);
 
     // send data to observer
-    if(m_observer.empty(function))
+    if(m_observer.empty(observer))
     {
-        K_INFO("RPC : observer %s list is empty.\n", observer);
+        K_INFO("RPC : observer %s list is empty.\n", observer.c_str());
         request->releaseBodyData();
         delete (request);
         return 0;
@@ -677,7 +674,7 @@ int RPCCore::invokeObserver(const char *observer, void *data, size_t len)
     return 0;
 }
 
-int RPCCore::registerObserver(const string &module, const char *observer, ObserverHandler func)
+int RPCCore::registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv)
 {
     string process;
     int result = -1;
@@ -685,15 +682,15 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
     RPCProxy proxy_impl;
     Message *request = NULL;
     Message *response = NULL;
-    string function(observer);
-    struct timespec tp = {0, 0};
     ProcessConfig process_config;
+    struct timeval timetv = {0, 0};
+    string observer_handler(observer);
     struct WorkerEntry *worker = NULL;
     string register_func(REGISTEROBSERVERFUNC);
     
-    if(NULL == observer)
+    if(observer.empty())
     {
-        K_ERROR("RPC : observer name can't be NULL!\n");
+        K_ERROR("RPC : observer name can't be empty!\n");
         return -1;
     }
 
@@ -710,10 +707,10 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
         return -1;
     }
 
+    observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
     if(process == m_process)  // module in current process
     {
-        function.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
-        m_func_hash.insert(function, (void *)func);
+        m_func_hash.insert(observer_handler, (void *)func);
         return 0;
     }
     
@@ -730,6 +727,18 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
         return -1;
     }
 
+    // if user not set tv, use default timeout to wait
+    if((NULL == tv) || ((0 == tv->tv_sec) && (0 == tv->tv_usec)))
+    {
+        timetv.tv_sec = m_comm_tv.tv_sec;
+        timetv.tv_usec = m_comm_tv.tv_usec;
+    }
+    else
+    {
+        timetv.tv_sec = tv->tv_sec;
+        timetv.tv_usec = tv->tv_usec;
+    }
+    
     request = new Message();
     if(NULL == request)
     {
@@ -737,8 +746,8 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
         return -1;
     }
     frame = getFrameID();
-    request->initObserverRequestMessage(&tp, frame, RPCSUCCESS);
-    request->setBodyHead(m_process, process, function, register_func);
+    request->initObserverRequestMessage(&timetv, frame, RPCSUCCESS);
+    request->setBodyHead(m_process, process, observer, register_func);
     result = request->mallocBodyData(NULL, 0);
     request->updateBodySize();
 
@@ -760,16 +769,13 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
         return -1;
     }
     m_proxy_hash.insert(frame, (void *)&proxy_impl);
-    result = proxy_impl.wait(m_comm_tv);
+    result = proxy_impl.wait(timetv);
     m_proxy_hash.remove(frame);
     response = (Message *)proxy_impl.getResponseMsg();
     proxy_impl.destroy();
 
     if((0 == result) && response)
-    {
-        function.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
-        m_func_hash.insert(function, (void *)func);
-    }
+        m_func_hash.insert(observer_handler, (void *)func);
     
     if(response)
     {
@@ -780,7 +786,7 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
     return result ? -1 : 0;
 }
 
-int RPCCore::unregisterObserver(const string &module, const char *observer)
+int RPCCore::unregisterObserver(const string &module, const string &observer, struct timeval *tv)
 {
     string process;
     int result = -1;
@@ -788,11 +794,17 @@ int RPCCore::unregisterObserver(const string &module, const char *observer)
     RPCProxy proxy_impl;
     Message *request = NULL;
     Message *response = NULL;
-    string function(observer);
-    struct timespec tp = {0, 0};
     ProcessConfig process_config;
+    struct timeval timetv = {0, 0};
+    string observer_handler(observer);
     struct WorkerEntry *worker = NULL;
     string unregister_func(UNREGISTEROBSERVERFUNC);
+
+    if(observer.empty())
+    {
+        K_ERROR("RPC : observer name can't be empty!\n");
+        return -1;
+    }
     
     if(false == m_conf_state)
     {
@@ -807,9 +819,10 @@ int RPCCore::unregisterObserver(const string &module, const char *observer)
         return -1;
     }
 
+    observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
     if(process == m_process)  // module in current process
     {
-        m_func_hash.remove(function);
+        m_func_hash.remove(observer_handler);
         return 0;
     }
     
@@ -826,6 +839,18 @@ int RPCCore::unregisterObserver(const string &module, const char *observer)
         return -1;
     }
 
+    // if user not set tv, use default timeout to wait
+    if((NULL == tv) || ((0 == tv->tv_sec) && (0 == tv->tv_usec)))
+    {
+        timetv.tv_sec = m_comm_tv.tv_sec;
+        timetv.tv_usec = m_comm_tv.tv_usec;
+    }
+    else
+    {
+        timetv.tv_sec = tv->tv_sec;
+        timetv.tv_usec = tv->tv_usec;
+    }
+    
     request = new Message();
     if(NULL == request)
     {
@@ -833,8 +858,8 @@ int RPCCore::unregisterObserver(const string &module, const char *observer)
         return -1;
     }
     frame = getFrameID();
-    request->initObserverRequestMessage(&tp, frame, RPCSUCCESS);
-    request->setBodyHead(m_process, process, function, unregister_func);
+    request->initObserverRequestMessage(&timetv, frame, RPCSUCCESS);
+    request->setBodyHead(m_process, process, observer, unregister_func);
     result = request->mallocBodyData(NULL, 0);
     request->updateBodySize();
 
@@ -856,14 +881,14 @@ int RPCCore::unregisterObserver(const string &module, const char *observer)
         return -1;
     }
     m_proxy_hash.insert(frame, (void *)&proxy_impl);
-    result = proxy_impl.wait(m_comm_tv);
+    result = proxy_impl.wait(timetv);
     m_proxy_hash.remove(frame);
     response = (Message *)proxy_impl.getResponseMsg();
     proxy_impl.destroy();
 
     if((0 == result) && response)
-        m_func_hash.remove(function);
-    
+        m_func_hash.remove(observer_handler);
+
     if(response)
     {
         response->releaseBodyData();
@@ -889,7 +914,7 @@ void RPCCore::addSendWorker(void *worker)
 
 int RPCCore::registerObserverHandler(void *fdp, void *msg)
 {
-    struct timespec tp;
+    struct timeval tv;
     Message *response = NULL;
     Message *request = (Message *)msg;
     struct WorkerEntry *worker = NULL;
@@ -909,8 +934,8 @@ int RPCCore::registerObserverHandler(void *fdp, void *msg)
     m_observer.insert(request->getModule(), fdp);
     
     /* init message head */
-    tp = request->getTimeoutTP();
-    response->initObserverResponseMessage(&tp, request->getMessageID(), RPCSUCCESS);
+    tv = request->getTimeoutTV();
+    response->initObserverResponseMessage(&tv, request->getMessageID(), RPCSUCCESS);
     /* init body head */
     response->setBodyHead(m_process, request->getSender(), request->getModule(), request->getFunction());
     /* init body data */
@@ -932,7 +957,7 @@ int RPCCore::registerObserverHandler(void *fdp, void *msg)
 
 int RPCCore::unregisterObserverHandler(void *fdp, void *msg)
 {
-    struct timespec tp;
+    struct timeval tv;
     Message *response = NULL;
     Message *request = (Message *)msg;
     struct WorkerEntry *worker = NULL;
@@ -952,8 +977,8 @@ int RPCCore::unregisterObserverHandler(void *fdp, void *msg)
     m_observer.remove(request->getModule(), fdp);
     
     /* init message head */
-    tp = request->getTimeoutTP();
-    response->initObserverResponseMessage(&tp, request->getMessageID(), RPCSUCCESS);
+    tv = request->getTimeoutTV();
+    response->initObserverResponseMessage(&tv, request->getMessageID(), RPCSUCCESS);
     /* init body head */
     response->setBodyHead(m_process, request->getSender(), request->getModule(), request->getFunction());
     /* init body data */
@@ -1108,7 +1133,6 @@ int RPCCore::sendLinkMessage(void *fdp)
     void *link_data = NULL;
     Message *request = NULL;
     Message *response = NULL;
-    struct timespec tp = {0, 0};
 
     request = new Message();
     if(NULL == request)
@@ -1118,7 +1142,7 @@ int RPCCore::sendLinkMessage(void *fdp)
     }
 
     frame = getFrameID();
-    request->initLinkRequestMessage(&tp, frame, RPCSUCCESS);
+    request->initLinkRequestMessage(&m_comm_tv, frame, RPCSUCCESS);
     request->setSender(m_process);
     request->mallocBodyData(NULL, 0);
     request->updateBodySize();
@@ -1160,7 +1184,7 @@ REPEAT_SEND:
 
 int RPCCore::recvLinkMessage(void *fdp, void *msg)
 {
-    struct timespec tp;
+    struct timeval tv;
     Message *response = NULL;
     Message *request = (Message *)msg;
     struct WorkerEntry *worker = NULL;
@@ -1173,8 +1197,8 @@ int RPCCore::recvLinkMessage(void *fdp, void *msg)
     }
 
     /* init message head */
-    tp = request->getTimeoutTP();
-    response->initApplyResponseMessage(&tp, request->getMessageID(), RPCSUCCESS);
+    tv = request->getTimeoutTV();
+    response->initApplyResponseMessage(&tv, request->getMessageID(), RPCSUCCESS);
     /* init body head */
     response->setSender(m_process);
     response->setRecver(request->getSender());
@@ -1198,7 +1222,7 @@ int RPCCore::recvLinkMessage(void *fdp, void *msg)
 
 int RPCCore::errorACKMessage(void *fdp, void *msg)
 {
-    struct timespec tp;
+    struct timeval tv;
     Message *response = NULL;
     Message *request = (Message *)msg;
     struct WorkerEntry *worker = NULL;
@@ -1211,8 +1235,8 @@ int RPCCore::errorACKMessage(void *fdp, void *msg)
     }
 
     /* init message head */
-    tp = request->getTimeoutTP();
-    response->initApplyResponseMessage(&tp, request->getMessageID(), RPCNOSPECIFYSERVICE);
+    tv = request->getTimeoutTV();
+    response->initApplyResponseMessage(&tv, request->getMessageID(), RPCNOSPECIFYSERVICE);
     /* init body head */
     response->setBodyHead(m_process, request->getSender(), request->getModule(), request->getFunction());
     /* init body data */
@@ -1393,7 +1417,9 @@ REPEAT_ANALYSE:
             {
                 if(string(INVOKEOBSERVERFUNC) == message->getFunction())
                 {
-                    func_handler = (ServiceHandler)m_func_hash.find(message->getModule());
+                    string observer_handler(message->getModule());
+                    observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
+                    func_handler = (ServiceHandler)m_func_hash.find(observer_handler);
                     if(NULL == func_handler)
                     {
                         K_ERROR("RPC : does't has %s observer function, please check!\n", message->getModule().c_str());

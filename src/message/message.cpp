@@ -31,49 +31,49 @@ Message::~Message()
     m_message_head.init();
 }
 
-void Message::initLinkRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initLinkRequestMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initLinkRequestMsg(tp, msgID, statusCode);
+    m_message_head.initLinkRequestMsg(tv, msgID, statusCode);
 }
 
-void Message::initLinkResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initLinkResponseMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initLinkResponseMsg(tp, msgID, statusCode);
+    m_message_head.initLinkResponseMsg(tv, msgID, statusCode);
 }
 
-void Message::initBeatRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initBeatRequestMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initBeatRequestMsg(tp, msgID, statusCode);
+    m_message_head.initBeatRequestMsg(tv, msgID, statusCode);
 }
 
-void Message::initBeatResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initBeatResponseMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initBeatResponseMsg(tp, msgID, statusCode);
+    m_message_head.initBeatResponseMsg(tv, msgID, statusCode);
 }
 
-void Message::initApplyRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initApplyRequestMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initApplyRequestMsg(tp, msgID, statusCode);
+    m_message_head.initApplyRequestMsg(tv, msgID, statusCode);
 }
 
-void Message::initApplyResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initApplyResponseMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initApplyResponseMsg(tp, msgID, statusCode);
+    m_message_head.initApplyResponseMsg(tv, msgID, statusCode);
 }
 
-void Message::initObserverRequestMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initObserverRequestMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initObserverRequestMsg(tp, msgID, statusCode);
+    m_message_head.initObserverRequestMsg(tv, msgID, statusCode);
 }
 
-void Message::initObserverResponseMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initObserverResponseMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initObserverResponseMsg(tp, msgID, statusCode);
+    m_message_head.initObserverResponseMsg(tv, msgID, statusCode);
 }
 
-void Message::initObserverInvokeMessage(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void Message::initObserverInvokeMessage(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
-    m_message_head.initObserverInvokeMsg(tp, msgID, statusCode);
+    m_message_head.initObserverInvokeMsg(tv, msgID, statusCode);
 }
 
 void Message::getMessageHeadFromData(const void *data)
@@ -86,9 +86,24 @@ void Message::getMessageHeadFromData(const void *data, MessageHeadStr *msg)
     MessageHead::DeserializeMessageHead(data, msg);
 }
 
+bool Message::checkOnewayStatus(void)
+{
+    return m_message_head.getOnewayStatus();
+}
+
+void Message::changeOnewayStatus(bool oneway)
+{
+    m_message_head.setOnewayStatus(oneway);
+}
+
 bool Message::checkResponseStatus(void)
 {
     return m_message_head.getResponseStatus();
+}
+
+void Message::changeResponseStatus(bool response)
+{
+    m_message_head.setResponseStatus(response);
 }
 
 unsigned int Message::getMessageID(void)
@@ -106,9 +121,9 @@ unsigned int Message::getStatusCode(void)
     return m_message_head.getStatusCode();
 }
 
-struct timespec Message::getTimeoutTP(void)
+struct timeval Message::getTimeoutTV(void)
 {
-    return m_message_head.getTimeoutTP();
+    return m_message_head.getTimeoutTV();
 }
 
 void Message::setSender(const string &sender)

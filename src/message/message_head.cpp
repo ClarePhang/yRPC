@@ -22,7 +22,7 @@
 #define initSERIALIZETYPE(s_type)    (s_type = ST_BIN_BD)
 #define initONEWAYSTATUS(way)        (way = false)
 #define initRESPONSESTATUS(res)      (res = false)
-#define initTIMESPEC(tv)             (memset(&tv, 0, sizeof(struct timespec)))
+#define initTIMEVAL(tv)             (memset(&tv, 0, sizeof(struct timeval)))
 #define initSTATUSCODE(code)         (code = 0)
 #define initMESSAGEID(id)            (id = 0)
 #define initBODYSIZE(b_size)         (b_size = 0)
@@ -53,7 +53,7 @@
                                             }while(0)
 #define getTIMESPECFROMSTR(tp, ptr)         do{ \
                                                 tp.tv_sec = (((ptr)[0])<<4) | ((((ptr)[1])&0xF0)>>4); \
-                                                tp.tv_nsec = ((((ptr)[1])&0xF)<<8) | ((ptr)[2]); \
+                                                tp.tv_usec = ((((ptr)[1])&0xF)<<8) | ((ptr)[2]); \
                                             }while(0)
 #define getSTATUSCODEFROMSTR(ptr)           getUnsignedShortData(ptr)
 #define getMESSAGEIDFROMSTR(ptr)            getUnsignedIntData(ptr)
@@ -77,9 +77,9 @@
 #define setMSGSERIALTYPETOSTR(msg, ptr)     (((ptr)[0]) = (msg)->message_type<<4 | (msg)->serialize_type)
 #define setMSGFLAGTOSTR(msg, ptr)           ((((ptr)[0]) = (msg)->one_way<<7 | (msg)->response<<6) & 0xC0)
 #define setTIMEOUTTOSTR(msg, ptr)           do{ \
-                                                ((ptr)[0]) = ((msg)->timesp.tv_sec>>4) & 0xFF; \
-                                                ((ptr)[1]) = ((msg)->timesp.tv_sec<<4 & 0xF0) | ((msg)->timesp.tv_nsec>>8 & 0xF); \
-                                                ((ptr)[2]) = (msg)->timesp.tv_nsec & 0xFF; \
+                                                ((ptr)[0]) = ((msg)->timevl.tv_sec>>4) & 0xFF; \
+                                                ((ptr)[1]) = ((msg)->timevl.tv_sec<<4 & 0xF0) | ((msg)->timevl.tv_usec>>8 & 0xF); \
+                                                ((ptr)[2]) = (msg)->timevl.tv_usec & 0xFF; \
                                             }while(0)
 #define setSTATUSCODETOSTR(msg, ptr)        setUnsignedShortData(msg, ptr, status_code)
 #define setMESSAGEIDTOSTR(msg, ptr)         setUnsignedIntData(msg, ptr, message_id)
@@ -138,7 +138,7 @@ void MessageHead::DeserializeMessageHead(const void *data)
     getONEWAYSTATUSFROMSTR(m_message_head.one_way, ptr);
     getRESPONSESTATUSFROMSTR(m_message_head.response, ptr);
     ptr += FLAG_STR_LENGTH;
-    getTIMESPECFROMSTR(m_message_head.timesp, ptr);
+    getTIMESPECFROMSTR(m_message_head.timevl, ptr);
     ptr += TIMEOUT_STR_LENGTH;
     m_message_head.status_code = getSTATUSCODEFROMSTR(ptr);
     ptr += STATUSCODE_STR_LENGTH;
@@ -192,7 +192,7 @@ void MessageHead::DeserializeMessageHead(const void *data, MessageHeadStr *msg)
     getONEWAYSTATUSFROMSTR(msg->one_way, ptr);
     getRESPONSESTATUSFROMSTR(msg->response, ptr);
     ptr += FLAG_STR_LENGTH;
-    getTIMESPECFROMSTR(msg->timesp, ptr);
+    getTIMESPECFROMSTR(msg->timevl, ptr);
     ptr += TIMEOUT_STR_LENGTH;
     msg->status_code = getSTATUSCODEFROMSTR(ptr);
     ptr += STATUSCODE_STR_LENGTH;
@@ -213,7 +213,7 @@ void MessageHead::init(void)
     initSERIALIZETYPE(m_message_head.serialize_type); // maybe not the same
     initONEWAYSTATUS(m_message_head.one_way);         // need ack, maybe not
     initRESPONSESTATUS(m_message_head.response);      // request, maybe not
-    initTIMESPEC(m_message_head.timesp);
+    initTIMEVAL(m_message_head.timevl);
     initSTATUSCODE(m_message_head.status_code);
     initMESSAGEID(m_message_head.message_id);
     initBODYSIZE(m_message_head.body_size);
@@ -232,7 +232,7 @@ void MessageHead::view(void)
     K_INFO("  SType  : %02X\n", m_message_head.serialize_type);
     K_INFO("  OneWay : %d\n", m_message_head.one_way);
     K_INFO("  Respon : %d\n", m_message_head.response);
-    K_INFO("  Timeout: %ldS-%lduS\n", m_message_head.timesp.tv_sec, m_message_head.timesp.tv_nsec);
+    K_INFO("  Timeout: %ldS-%lduS\n", m_message_head.timevl.tv_sec, m_message_head.timevl.tv_usec);
     K_INFO("  Code   : %04X\n", m_message_head.status_code);
     K_INFO("  MSGID  : %u\n", m_message_head.message_id);
     K_INFO("  BDSize : %u\n", m_message_head.body_size);
@@ -278,14 +278,14 @@ bool MessageHead::getResponseStatus(void)
     return m_message_head.response;
 }
 
-void MessageHead::setTimeoutTP(struct timespec *tp)
+void MessageHead::setTimeoutTV(struct timeval *tv)
 {
-    m_message_head.timesp = *tp;
+    m_message_head.timevl = *tv;
 }
 
-struct timespec MessageHead::getTimeoutTP(void)
+struct timeval MessageHead::getTimeoutTV(void)
 {
-    return m_message_head.timesp;
+    return m_message_head.timevl;
 }
 
 void MessageHead::setStatusCode(unsigned int code)
@@ -318,101 +318,101 @@ unsigned int MessageHead::getBodySize(void)
     return m_message_head.body_size;
 }
 
-void MessageHead::initLinkRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initLinkRequestMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_LINK_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(false);
     setResponseStatus(false);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }
 
-void MessageHead::initLinkResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initLinkResponseMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_LINK_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(true);
     setResponseStatus(true);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }
 
-void MessageHead::initBeatRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initBeatRequestMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_BEAT_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(false);
     setResponseStatus(false);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }
 
-void MessageHead::initBeatResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initBeatResponseMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_BEAT_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(true);
     setResponseStatus(true);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }
 
-void MessageHead::initApplyRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initApplyRequestMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_APPLY_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(false);
     setResponseStatus(false);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }
 
-void MessageHead::initApplyResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initApplyResponseMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_APPLY_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(true);
     setResponseStatus(true);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }
 
-void MessageHead::initObserverRequestMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initObserverRequestMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_OBSER_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(false);
     setResponseStatus(false);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }
 
-void MessageHead::initObserverResponseMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initObserverResponseMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_OBSER_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(true);
     setResponseStatus(true);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }
 
-void MessageHead::initObserverInvokeMsg(struct timespec *tp, unsigned int msgID, unsigned int statusCode)
+void MessageHead::initObserverInvokeMsg(struct timeval *tv, unsigned int msgID, unsigned int statusCode)
 {
     setMessageType(MT_OBSER_PK);
     setSerializeType(ST_BIN_BD);
     setOnewayStatus(true);
     setResponseStatus(false);
-    setTimeoutTP(tp);
+    setTimeoutTV(tv);
     setStatusCode(statusCode);
     setMessageID(msgID);
 }

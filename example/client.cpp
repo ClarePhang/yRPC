@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
         printf("malloc RPC core failed!\n");
         return -1;
     }
+
     server->initRPC(argv[0], "../conf/rpc.conf");
 
     server->start();

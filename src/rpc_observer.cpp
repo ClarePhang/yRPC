@@ -61,7 +61,7 @@ bool ObserverHash::empty(const string &key)
 {
     m_it = m_observer_map.find(key);
     if(m_it == m_observer_map.end())
-        return false;
+        return true;
     return m_it->second->empty();
 }
 
