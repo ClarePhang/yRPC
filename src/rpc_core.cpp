@@ -52,6 +52,7 @@
 string RPCCore::m_process;
 bool RPCCore::m_run_state;
 bool RPCCore::m_conf_state;
+RPCConfig *RPCCore::m_conf;
 RPCCore *RPCCore::m_rpc_core;
 UINTHash RPCCore::m_proxy_hash;
 StringHash RPCCore::m_func_hash;
@@ -60,10 +61,9 @@ ObserverHash RPCCore::m_observer;
 ThreadPool *RPCCore::m_threadpool;
 struct timeval RPCCore::m_conn_tv;
 struct timeval RPCCore::m_comm_tv;
+ProcessConfig RPCCore::m_self_conf;
 StringHash RPCCore::m_connect_hash;
 PointerList RPCCore::m_connect_list;
-ModuleConfig RPCCore::module_config;
-NetworkConfig RPCCore::network_config;
 struct WorkerHead RPCCore::m_work_head;
 volatile unsigned int RPCCore::m_frame_id;
 pthread_cond_t RPCCore::m_send_cond = PTHREAD_COND_INITIALIZER;
@@ -71,6 +71,7 @@ pthread_mutex_t RPCCore::m_send_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 RPCCore::RPCCore()
 {
+    m_conf = NULL;
     m_rpc_core = NULL;
     m_process.clear();
     m_run_state = false;
@@ -90,6 +91,7 @@ RPCCore::RPCCore()
 
 RPCCore::~RPCCore()
 {
+    m_conf = NULL;
     m_rpc_core = NULL;
     m_process.clear();
     m_run_state = false;
@@ -126,21 +128,47 @@ int RPCCore::setProcessName(const char *process)
 
 int RPCCore::setConfigProfile(const string &network, const string &module)
 {
-    int result = -1;
-
     if(0 == m_process.size())
     {
         K_ERROR("RPC : please set process name first!\n");
         return -1;
     }
     
-    result = network_config.setConfigProfile(network);
-    if(result == 0)
-        result = module_config.setConfigProfile(module);
-    if(result == 0)
-        m_conf_state = true;
-    
-    return result;
+    return 0;
+}
+
+int RPCCore::initRPC(const char *service_name)
+{
+    return initRPC(service_name, NULL);
+}
+
+int RPCCore::initRPC(const char *service_name, const char *conf_path)
+{
+    int result = -1;
+    string c_path;
+
+    if(service_name[0] == '.')
+        m_process = &service_name[2];
+    else
+        m_process = service_name;
+
+    c_path.clear();
+    if(NULL != conf_path)
+        c_path.append(conf_path, strlen(conf_path));
+
+    m_conf = RPCConfig::getInstance();
+    if(NULL == m_conf)
+    {
+        K_ERROR("RPC : new RPC configuration memory failed!\n");
+        return -1;
+    }
+
+    result = m_conf->setConfigProfile(c_path);
+    if(0 != result)
+        return -1;
+
+    m_conf_state = true;
+    return 0;
 }
 
 int RPCCore::registerService(const char *service, ServiceHandler func)
@@ -253,10 +281,10 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
     int result = -1;
     unsigned int frame;
     RPCProxy proxy_impl;
-    SocketStruct dest_addr;
     Message *request = NULL;
     Message *response = NULL;
     struct timespec tp = {0, 0};
+    ProcessConfig process_config;
     ServiceHandler func_handler = NULL;
 
     if(false == m_run_state)
@@ -266,14 +294,14 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
         return -1;
     }
 
-    result = module_config.referModule(module, recver);
+    result = m_conf->getProcessFromModule(recver, module);
     if(0 != result)
     {
         K_ERROR("RPC : current system does't has %s module, please check!\n", module.c_str());
         return -1;
     }
 
-    result = network_config.getNetworkConfig(recver, dest_addr);
+    result = m_conf->getProcessNetConfig(recver, process_config);
     if(0 != result)
     {
         K_ERROR("RPC : %s process does't not have ip-addr config, please check!\n", recver.c_str());
@@ -390,10 +418,9 @@ int RPCCore::start(void)
 {
     int result = -1;
     int fix, dyn, queue;
-    SocketStruct socket_str;
     struct sockaddr_un u_addr;
     struct sockaddr_in s_addr;
-
+    
     if(false == m_conf_state)
     {
         K_ERROR("RPC : you must set RPC-Configuration before start run!\n");
@@ -401,7 +428,7 @@ int RPCCore::start(void)
     }
 
     // 1.find local socket config
-    result = network_config.getNetworkConfig(m_process, socket_str);
+    result = m_conf->getProcessConfig(m_process, m_self_conf);
     if(0 != result)
     {
         K_ERROR("RPC : could not find %s process addr configuration!\n", m_process.c_str());
@@ -409,45 +436,56 @@ int RPCCore::start(void)
     }
 
     // 2.set communicate timeout
-    network_config.getConnectTimeout(&m_conn_tv);
-    if((m_conn_tv.tv_sec == 0) && (m_conn_tv.tv_usec == 0))
+    if(0 == m_self_conf.connect_timeout)
     {
         m_conn_tv.tv_sec = TIMEOUTDEFAULTSEC;
         m_conn_tv.tv_usec = TIMEOUTDEFAULTUSEC;
     }
-    network_config.getCommunicateTimeout(&m_comm_tv);
-    if((m_comm_tv.tv_sec == 0) && (m_comm_tv.tv_usec == 0))
+    else
+    {
+        m_conn_tv.tv_sec = m_self_conf.connect_timeout / 1000;
+        m_conn_tv.tv_usec = m_self_conf.connect_timeout % 1000;
+    }
+    if(0 == m_self_conf.interactive_timeout)
     {
         m_comm_tv.tv_sec = TIMEOUTDEFAULTSEC;
         m_comm_tv.tv_usec = TIMEOUTDEFAULTUSEC;
     }
+    else
+    {
+        m_comm_tv.tv_sec = m_self_conf.interactive_timeout / 1000;
+        m_comm_tv.tv_usec = m_self_conf.interactive_timeout % 1000;
+    }
     m_comm_base.setTimeout(m_comm_tv);
 
     // 3.create socket base thread
-    if(socket_str.port == 0) // use localsocket
+    if(0 == m_self_conf.listen_port) // use localsocket
     {
-        unlink(socket_str.ipaddr.c_str());
-        SocketBaseOpt::initSockaddr(u_addr, socket_str.ipaddr.c_str());
+        unlink(m_self_conf.ip_address.c_str());
+        SocketBaseOpt::initSockaddr(u_addr, m_self_conf.ip_address.c_str());
         result = m_comm_base.create(eventHandler, (struct sockaddr *)&u_addr, sizeof(u_addr));
     }
     else
     {
-        SocketBaseOpt::initSockaddr(s_addr, socket_str.ipaddr.c_str(), socket_str.port);
+        SocketBaseOpt::initSockaddr(s_addr, m_self_conf.ip_address.c_str(), m_self_conf.listen_port);
         result = m_comm_base.create(eventHandler, (struct sockaddr *)&s_addr, sizeof(s_addr));
     }
     if(0 != result)
         return result;
 
     // 4.create threadpool
-    fix = module_config.getFixThreadNum();
-    if(fix <= 0)
+    if(0 == m_self_conf.fix_threads)
         fix = FIXTHREADDEFAULTNUM;
-    dyn = module_config.getDynThreadNum();
-    if(dyn <= 0)
+    else
+        fix = m_self_conf.fix_threads;
+    if(0 == m_self_conf.dyn_threads)
         dyn = DYNTHREADDEFAULTNUM;
-    queue = module_config.getMaxQueueNum();
-    if(queue <= 0)
+    else
+        dyn = m_self_conf.dyn_threads;
+    if(0 == m_self_conf.max_workqueue)
         queue = MAXQUEUEDEFAULTNUM;
+    else
+        queue = m_self_conf.max_workqueue;
 
     m_threadpool = ThreadPool::getInstance();
     if(NULL == m_threadpool)
@@ -483,18 +521,18 @@ int RPCCore::runUntilAskedToQuit(bool state)
     
     if(false == m_run_state)
     {
-        K_ERROR("RPC : you have't RPC before!");
+        K_ERROR("RPC : you have't run RPC before!\n");
         exit(-1);
     }
 
     if(signal(SIGINT,signalHandler) == SIG_ERR)
-        K_ERROR("RPC : register SIGINT failed!");
+        K_ERROR("RPC : register SIGINT failed!\n");
     if(signal(SIGTERM,signalHandler) == SIG_ERR)
-        K_ERROR("RPC : register SIGTERM failed!");
+        K_ERROR("RPC : register SIGTERM failed!\n");
     if(signal(SIGALRM,signalHandler) == SIG_ERR)
-        K_ERROR("RPC : register SIGALRM failed!");
+        K_ERROR("RPC : register SIGALRM failed!\n");
     if(signal(SIGSEGV,signalHandler) == SIG_ERR)
-        K_ERROR("RPC : register SIGSEGV failed!");
+        K_ERROR("RPC : register SIGSEGV failed!\n");
 
     if(false == state)
         K_INFO("You want to stop RPC before business running.\n");
@@ -645,11 +683,11 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
     int result = -1;
     unsigned int frame;
     RPCProxy proxy_impl;
-    SocketStruct dest_addr;
     Message *request = NULL;
     Message *response = NULL;
     string function(observer);
     struct timespec tp = {0, 0};
+    ProcessConfig process_config;
     struct WorkerEntry *worker = NULL;
     string register_func(REGISTEROBSERVERFUNC);
     
@@ -665,7 +703,7 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
         return -1;
     }
 
-    result = module_config.referModule(module, process);
+    result = m_conf->getProcessFromModule(process, module);
     if(0 != result)
     {
         K_ERROR("RPC : current system does't has %s module, please check!\n", module.c_str());
@@ -685,7 +723,7 @@ int RPCCore::registerObserver(const string &module, const char *observer, Observ
         return -1;
     }
 
-    result = network_config.getNetworkConfig(process, dest_addr);
+    result = m_conf->getProcessNetConfig(process, process_config);
     if(0 != result)
     {
         K_ERROR("RPC : %s process does't not have ip-addr config, please check!\n", process.c_str());
@@ -748,11 +786,11 @@ int RPCCore::unregisterObserver(const string &module, const char *observer)
     int result = -1;
     unsigned int frame;
     RPCProxy proxy_impl;
-    SocketStruct dest_addr;
     Message *request = NULL;
     Message *response = NULL;
     string function(observer);
     struct timespec tp = {0, 0};
+    ProcessConfig process_config;
     struct WorkerEntry *worker = NULL;
     string unregister_func(UNREGISTEROBSERVERFUNC);
     
@@ -762,7 +800,7 @@ int RPCCore::unregisterObserver(const string &module, const char *observer)
         return -1;
     }
 
-    result = module_config.referModule(module, process);
+    result = m_conf->getProcessFromModule(process, module);
     if(0 != result)
     {
         K_ERROR("RPC : current system does't has %s module, please check!\n", module.c_str());
@@ -781,7 +819,7 @@ int RPCCore::unregisterObserver(const string &module, const char *observer)
         return -1;
     }
 
-    result = network_config.getNetworkConfig(process, dest_addr);
+    result = m_conf->getProcessNetConfig(process, process_config);
     if(0 != result)
     {
         K_ERROR("RPC : %s process does't not have ip-addr config, please check!\n", process.c_str());
@@ -938,13 +976,13 @@ void *RPCCore::sendThread(void *arg)
 {
     int result = -1;
     size_t send_len = 0;
-    SocketStruct dest_addr;
     void *send_data = NULL;
     void *connect_fd = NULL;
     Message *message = NULL;
     struct sockaddr_un u_addr;
     struct sockaddr_in s_addr;
     void *connect_tmp_fd = NULL;
+    ProcessConfig process_config;
     volatile int connect_count = 0;
     struct WorkerEntry *worker = NULL;
 
@@ -998,15 +1036,15 @@ void *RPCCore::sendThread(void *arg)
         REPEAT_CONNECT:
             if(CONNECTRETRYDEFAULT == connect_count)
                 goto FREE_MEMORY;
-            network_config.getNetworkConfig(message->getRecver(), dest_addr);
-            if(0 == dest_addr.port)
+            m_conf->getProcessNetConfig(message->getRecver(), process_config);
+            if(0 == process_config.listen_port)
             {
-                SocketBaseOpt::initSockaddr(u_addr, dest_addr.ipaddr.c_str());
+                SocketBaseOpt::initSockaddr(u_addr, process_config.ip_address.c_str());
                 result = m_comm_base.connect((struct sockaddr *)&u_addr, sizeof(u_addr), m_conn_tv, &connect_tmp_fd);
             }
             else
             {
-                SocketBaseOpt::initSockaddr(s_addr, dest_addr.ipaddr.c_str(), dest_addr.port);
+                SocketBaseOpt::initSockaddr(s_addr, process_config.ip_address.c_str(), process_config.listen_port);
                 result = m_comm_base.connect((struct sockaddr *)&s_addr, sizeof(s_addr), m_conn_tv, &connect_tmp_fd);
             }
             if(0 != result)

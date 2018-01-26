@@ -26,6 +26,8 @@ public:
     static ERPC *getInstance(void);
     virtual int setProcessName(const char *process) = 0;
     virtual int setConfigProfile(const string &network, const string &module) = 0;
+    virtual int initRPC(const char *service_name) = 0;
+    virtual int initRPC(const char *service_name, const char *conf_path) = 0;
     virtual int registerService(const char *service, ServiceHandler func) = 0;
     virtual int unregisterService(const char *service) = 0;
     virtual int setResponse(void *msg, void *response_data, size_t response_len) = 0;

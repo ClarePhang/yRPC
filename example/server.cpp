@@ -23,8 +23,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     
-    server->setProcessName(argv[0]);
-    server->setConfigProfile(string("../conf/network_building.conf"), "../conf/module_building.conf");
+    server->initRPC(argv[0], "../conf/rpc.conf");
 
     media.setRPC(server);
     server->registerService("mediaPlay", media.mediaPlay);

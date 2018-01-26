@@ -11,14 +11,13 @@
 
 #include "rpc.h"
 #include "queue.h"
+#include "rpc_conf.h"
 #include "uint_hash.h"
 #include "threadpool.h"
 #include "string_hash.h"
 #include "comm_driver.h"
 #include "pointer_list.h"
 #include "rpc_observer.h"
-#include "module_config.h"
-#include "network_config.h"
 
 using namespace std;
 
@@ -45,6 +44,8 @@ public:
     static RPCCore *getInstance(void);
     virtual int setProcessName(const char *process);
     virtual int setConfigProfile(const string &network, const string &module);
+    virtual int initRPC(const char *service_name);
+    virtual int initRPC(const char *service_name, const char *conf_path);
     virtual int registerService(const char *service, ServiceHandler func);
     virtual int unregisterService(const char *service);
     virtual int setResponse(void *msg, void *response_data, size_t response_len);
@@ -87,6 +88,7 @@ private:
     static string m_process;
     static bool m_run_state;
     static bool m_conf_state;
+    static RPCConfig *m_conf;
     static RPCCore *m_rpc_core;
     static UINTHash m_proxy_hash;
     static StringHash m_func_hash;
@@ -95,10 +97,9 @@ private:
     static ThreadPool *m_threadpool;
     static struct timeval m_conn_tv;
     static struct timeval m_comm_tv;
+    static ProcessConfig m_self_conf;
     static StringHash m_connect_hash;
     static PointerList m_connect_list;
-    static ModuleConfig module_config;
-    static NetworkConfig network_config;
     static pthread_cond_t m_send_cond;
     static pthread_mutex_t m_send_mutex;
     static struct WorkerHead m_work_head;

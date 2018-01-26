@@ -74,6 +74,7 @@ public:
     /*获取section段所有键为key的值,并将值赋到values的vector中,,将注释赋到comments的vector中*/
     int getValues(const string &section, const string &key, vector<string> &value, vector<string> &comments);
 
+    IniSection *getSection(const string &section = "");
     bool hasSection(const string &section) ;
     bool hasKey(const string &section, const string &key) ;
 
@@ -100,8 +101,9 @@ public:
     /*去掉str前面和后面的空格符,Tab符等空白符*/
     static void trim(string &str);
     /*将字符串str按分割符delim分割成多个子串*/
+    static void toLowerCase(string &str);
+    static void toUpperCase(string &str);
 private:
-    IniSection *getSection(const string &section = "");
     void release();
     int getline(string &str, FILE *fp);
     bool isComment(const string &str);
