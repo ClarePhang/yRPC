@@ -25,7 +25,8 @@
 #define RPCCONFIG_PATH_ENV  "RPCCONFIG_PATH"
 #define RPC_SELF_CHECK_ENV  "RPCCONFIG_CHECK"
 
-#define GLOBALSECTION           "Global"
+#define MODULESECTION           "ModuleConfiguration"
+#define GLOBALSECTION           "GlobalConfiguration"
 #define DEFAULTFIXTHREADSKEY    "DefaultFixThreads"
 #define DEFAULTDYNTHREADSKEY    "DefaultDynThreads"
 #define DEFAULTMAXWORKQUEUEKEY  "DefaultMaxWorkQueue"
@@ -47,7 +48,6 @@
 
 #define IPADDRESSKEY    "IPAddress"
 #define LISTENPORTKEY   "ListenPort"
-#define MODULESKEY      "Modules"
 
 RPCConfigBase::RPCConfigBase()
 {
@@ -231,10 +231,6 @@ void RPCConfigBase::printProcessConfig(const string &process)
         K_DEBUG("          %s = false\n", CYCLECHECKENKEY);
     K_DEBUG("          %s = %s\n", IPADDRESSKEY, process_config.ip_address.c_str());
     K_DEBUG("          %s = %d\n", LISTENPORTKEY, process_config.listen_port);
-
-    K_DEBUG("          Modules:\n");
-    for(unsigned int i = 0; i < process_config.modules.size(); i++)
-        K_DEBUG("           [%02d], %s\n", i, process_config.modules[i].c_str());
     K_DEBUG("\n");
 }
 
@@ -306,7 +302,9 @@ int RPCConfigBase::setConfigProfile(const string &path)
 int RPCConfigBase::selfCheckValidity(void)
 {
     IniFile::iterator it;
-
+    IniSection::iterator it_c;
+    IniSection *section_ptr = NULL;
+    
     if(CONFIG_LOAD_SUCCESS != m_load_state)
     {
         K_ERROR("RPCConfig : you have does't load a config file!\n");
@@ -327,6 +325,7 @@ int RPCConfigBase::selfCheckValidity(void)
         K_ERROR("RPCConfig : does't not have %s section config, please check!\n", GLOBALSECTION);
         goto CHECK_FAILED;
     }
+    // check Global configuration
     if(false == m_inifile.hasKey(GLOBALSECTION, DEFAULTFIXTHREADSKEY))
     {
         K_ERROR("RPCConfig : does't not have %s key config, please check!\n", DEFAULTFIXTHREADSKEY);
@@ -368,10 +367,26 @@ int RPCConfigBase::selfCheckValidity(void)
         goto CHECK_FAILED;
     }
 
+    // check module section
+    if(false == m_inifile.hasSection(MODULESECTION))
+    {
+        K_ERROR("RPCConfig : does't not have %s section config, please check!\n", MODULESECTION);
+        goto CHECK_FAILED;
+    }
+    // check module configuration
+    section_ptr = m_inifile.getSection(MODULESECTION);
+    for(it_c = section_ptr->begin(); it_c != section_ptr->end();++it_c)
+    {
+        if(false == m_inifile.hasSection(it_c->value))
+            K_ERROR("RPCConfig : does't not have %s process config, please check!\n", it_c->value.c_str());
+    }
+    
     // check process section
     for(it = m_inifile.begin(), it++; it != m_inifile.end(); ++it)
     {
         if(it->first == GLOBALSECTION)
+            continue;
+        else if(it->first == MODULESECTION)
             continue;
         
         if(false == m_inifile.hasKey(it->first, IPADDRESSKEY))
@@ -382,11 +397,6 @@ int RPCConfigBase::selfCheckValidity(void)
         if(false == m_inifile.hasKey(it->first, LISTENPORTKEY))
         {
             K_ERROR("RPCConfig : %s does't not have %s key config, please check!\n", it->first.c_str(), LISTENPORTKEY);
-            goto CHECK_FAILED;
-        }
-        if(false == m_inifile.hasKey(it->first, MODULESKEY))
-        {
-            K_ERROR("RPCConfig : %s does't not have %s key config, please check!\n", it->first.c_str(), MODULESKEY);
             goto CHECK_FAILED;
         }
     }
@@ -404,34 +414,13 @@ CHECK_FAILED:
 int RPCConfigBase::getProcessFromModule(string &process, const string &module)
 {
     int result = -1;
-    IniFile::iterator it;
-    vector<string> modules;
-    vector<string>::iterator m_it;
 
-    if(CONFIG_LOAD_SUCCESS != m_load_state)
+    result = m_inifile.getValue(MODULESECTION, module, process);
+    if(0 != result)
     {
-        K_ERROR("RPCConfig : you have does't load a config file!\n");
+        K_ERROR("RPCConfig : get process from %s module failed!\n", module.c_str());
         return -1;
     }
-
-    for(it = m_inifile.begin(), it++; it != m_inifile.end(); ++it)
-    {
-        if(string(GLOBALSECTION) ==  it->first)
-            continue;
-        result = m_inifile.getValues(it->first, MODULESKEY, modules);
-        if(result < 0)
-            return -1;
-        for(m_it = modules.begin(); m_it != modules.end(); ++m_it)
-        {
-            if(module == *m_it)
-            {
-                process = it->first;
-                return 0;
-            }
-        }
-    }
-    if(it == m_inifile.end())
-        return -1;  // not exsit
     
     return 0;
 }
@@ -462,7 +451,6 @@ int RPCConfigBase::getProcessConfig(const string &process, ProcessConfig &proces
         process_config.cycle_check_en = m_process_config_last.cycle_check_en;
         process_config.ip_address = m_process_config_last.ip_address;
         process_config.listen_port = m_process_config_last.listen_port;
-        process_config.modules = m_process_config_last.modules;
         return 0;
     }
     
@@ -508,11 +496,6 @@ int RPCConfigBase::getProcessConfig(const string &process, ProcessConfig &proces
     ret = getProcessNetConfig(process, process_config);  // get net config
     if(ret == 0)
     {
-        ret = getProcessModulesConfig(process, process_config);  // get modules config
-    }
-
-    if(ret == 0)
-    {
         m_process_last = process;
         //m_process_config_last = process_config;
         m_process_config_last.fix_threads = process_config.fix_threads;
@@ -525,13 +508,10 @@ int RPCConfigBase::getProcessConfig(const string &process, ProcessConfig &proces
         m_process_config_last.cycle_check_en = process_config.cycle_check_en;
         m_process_config_last.ip_address = process_config.ip_address;
         m_process_config_last.listen_port = process_config.listen_port;
-        m_process_config_last.modules = process_config.modules;
-    }
-    
-    #ifdef USING_DEBUG // just for Debug
-    if(0 == ret)
+        #ifdef USING_DEBUG // just for Debug
         printProcessConfig(process);
-    #endif
+        #endif
+    }
     
     return ret;
 }
@@ -560,24 +540,6 @@ int RPCConfigBase::getProcessNetConfig(const string &process, ProcessConfig &pro
     }
     
     return 0;
-}
-
-int RPCConfigBase::getProcessModulesConfig(const string &process, ProcessConfig &process_config)
-{
-    int ret = -1;
-    
-    if(CONFIG_LOAD_SUCCESS != m_load_state)
-    {
-        K_ERROR("RPCConfig : you have does't load a config file!\n");
-        return -1;
-    }
-
-    process_config.modules.clear();
-    ret = m_inifile.getValues(process, MODULESKEY, process_config.modules);
-    if(ret < 0)
-        K_ERROR("RPCConfig : get %s:%s config failed, please check!\n", process.c_str(), MODULESKEY);
-    
-    return ret;
 }
 
 int RPCConfigBase::getDefaultConfiguration(void)

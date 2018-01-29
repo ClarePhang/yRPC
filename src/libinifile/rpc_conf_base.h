@@ -38,7 +38,6 @@ public:
     virtual int getProcessFromModule(string &process, const string &module);
     virtual int getProcessConfig(const string &process, ProcessConfig &process_config);
     virtual int getProcessNetConfig(const string &process, ProcessConfig &process_config);
-    virtual int getProcessModulesConfig(const string &process, ProcessConfig &process_config);
     virtual int getDefaultConfiguration(DefaultGlobalConfig &default_config);
     virtual const string getRPCVersion(void);
     virtual int setRPCVersion(const string &version);

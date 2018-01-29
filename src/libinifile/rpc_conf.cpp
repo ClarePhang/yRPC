@@ -35,13 +35,3 @@ RPCConfig *RPCConfig::getInstance(void)
     return m_rpc_config_ptr;
 }
 
-bool RPCConfig::containModule(vector<string> modules, string module)
-{
-    for(unsigned int i = 0; i < modules.size(); i++)
-    {
-        if(module == modules[i])
-            return true;
-    }    
-    return false;
-}
-

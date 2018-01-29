@@ -35,7 +35,6 @@ typedef struct {
     bool cycle_check_en;
     string ip_address;
     unsigned int listen_port;
-    vector<string> modules;
 }ProcessConfig;
 
 Interface RPCConfig
@@ -43,7 +42,6 @@ Interface RPCConfig
 public:
     static RPCConfig *create(void);
     static RPCConfig *getInstance(void);
-    static bool containModule(vector<string> modules, string module);
     
 public:
     virtual int setConfigProfile(const string &path) = 0;
@@ -51,7 +49,6 @@ public:
     virtual int getProcessFromModule(string &process, const string &module) = 0;
     virtual int getProcessConfig(const string &process, ProcessConfig &process_config) = 0;
     virtual int getProcessNetConfig(const string &process, ProcessConfig &process_config) = 0;
-    virtual int getProcessModulesConfig(const string &process, ProcessConfig &process_config) = 0;
     virtual int getDefaultConfiguration(DefaultGlobalConfig &default_config) = 0;
     virtual const string getRPCVersion(void) = 0;
     virtual int setRPCVersion(const string &version) = 0;
