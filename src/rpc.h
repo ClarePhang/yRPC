@@ -13,8 +13,8 @@ using namespace std;
 #define Interface class
 #define Implement class
 
-typedef void (*ServiceHandler)(void *arg);
-typedef void (*ObserverHandler)(void *arg);
+typedef void (*ServiceHandler)(void *msg, void *data, size_t len);
+typedef void (*ObserverHandler)(void *msg, void *data, size_t len);
 
 class ERPC
 {
@@ -38,9 +38,6 @@ public: // observer function
     virtual int invokeObserver(const string &observer, void *data, size_t len) = 0;
     virtual int registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv = NULL) = 0;
     virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL) = 0;
-
-public:
-    static size_t getUserData(void *msg, void **data_ptr, size_t *data_len);
 
 private:
     static ERPC *m_erpc;

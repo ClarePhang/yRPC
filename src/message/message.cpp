@@ -17,6 +17,7 @@
 
 Message::Message()
 {
+    m_handler = NULL;
     m_user_data = NULL;
     m_user_data_len = 0;
     m_body_head.clear();
@@ -25,6 +26,7 @@ Message::Message()
 
 Message::~Message()
 {
+    m_handler = NULL;
     m_user_data = NULL;
     m_user_data_len = 0;
     m_body_head.clear();
@@ -191,6 +193,16 @@ void Message::setBodyHead(const string &sender, const string recver, const strin
     m_body_head.setRecver(recver);
     m_body_head.setModule(module);
     m_body_head.setFunction(function);
+}
+
+void Message::setHandler(void *handler)
+{
+    m_handler = handler;
+}
+
+void *Message::getHandler(void)
+{
+    return m_handler;
 }
 
 int Message::mallocBodyData(size_t user_len)

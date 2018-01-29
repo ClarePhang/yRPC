@@ -51,6 +51,8 @@ public:
     void getUserData(void **data, size_t *len);
     void getBodyHead(void *data);
     void setBodyHead(const string &sender, const string recver, const string &module, const string function);
+    void setHandler(void *handler);
+    void *getHandler(void);
 
 public:
     int mallocBodyData(size_t user_len);
@@ -68,6 +70,7 @@ public:
     void releaseSerializeMessage(void *data);
 
 private:
+    void *m_handler;
     void *m_user_data;
     size_t m_user_data_len;
     BodyHead m_body_head;

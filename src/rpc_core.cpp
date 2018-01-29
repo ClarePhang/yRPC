@@ -331,8 +331,8 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
             delete (request);
             return -1;
         }
-
-        result = m_threadpool->addWork(LowPriority, func_handler, (void *)request, releaseRPCMessage);
+        request->setHandler((void *)func_handler);
+        result = m_threadpool->addWork(LowPriority, businessHandler, (void *)request, releaseRPCMessage);
         if(0 != result)
         {
             request->releaseBodyData();
@@ -557,7 +557,7 @@ int RPCCore::runUntilAskedToQuit(bool state)
         free(worker);
         worker = NULL;
     }
-    
+
     // disconnect all socket
     fdp = m_connect_list.begin();
     if(fdp)
@@ -650,8 +650,11 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
     func_handler = (ServiceHandler)m_func_hash.find(observer_handler);
     if(NULL != func_handler)
-        m_threadpool->addWork(LowPriority, func_handler, (void *)request, NULL);
-
+    {
+        request->setHandler((void *)func_handler);
+        m_threadpool->addWork(LowPriority, businessHandler, (void *)request, NULL);
+    }
+    
     // send data to observer
     if(m_observer.empty(observer))
     {
@@ -914,6 +917,19 @@ void RPCCore::addSendWorker(void *worker)
     LIST_INSERT_HEAD(&m_work_head, (struct WorkerEntry *)worker, worker_next);
     pthread_cond_signal(&m_send_cond);
     pthread_mutex_unlock(&m_send_mutex);
+}
+
+void RPCCore::businessHandler(void *msg)
+{
+    size_t len = 0;
+    void *data = NULL;
+    ServiceHandler handler = NULL;
+    Message *message = (Message *)msg;
+
+    RPCCore::getUserData(msg, &data, &len);
+    handler = (ServiceHandler)message->getHandler();
+    if(handler)
+        handler(msg, data, len);
 }
 
 int RPCCore::registerObserverHandler(void *fdp, void *msg)
@@ -1393,7 +1409,8 @@ REPEAT_ANALYSE:
                     delete (message);
                     return -1;
                 }
-                result = m_threadpool->addWork(LowPriority, func_handler, (void *)message, releaseRPCMessage);
+                message->setHandler((void *)func_handler);
+                result = m_threadpool->addWork(LowPriority, businessHandler, (void *)message, releaseRPCMessage);
                 if(0 != result)
                 {
                     message->releaseBodyData();
@@ -1402,7 +1419,7 @@ REPEAT_ANALYSE:
                 }
             }
             break;
-            
+
         case MT_OBSER_PK:
             if(message->checkResponseStatus())
             {
@@ -1423,7 +1440,7 @@ REPEAT_ANALYSE:
                 {
                     string observer_handler(message->getModule());
                     observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
-                    func_handler = (ServiceHandler)m_func_hash.find(observer_handler);
+                    func_handler = (ObserverHandler)m_func_hash.find(observer_handler);
                     if(NULL == func_handler)
                     {
                         K_ERROR("RPC : does't has %s observer function, please check!\n", message->getModule().c_str());
@@ -1432,7 +1449,8 @@ REPEAT_ANALYSE:
                         delete (message);
                         return -1;
                     }
-                    result = m_threadpool->addWork(LowPriority, func_handler, (void *)message, releaseRPCMessage);
+                    message->setHandler((void *)func_handler);
+                    result = m_threadpool->addWork(LowPriority, businessHandler, (void *)message, releaseRPCMessage);
                     if(0 != result)
                     {
                         message->releaseBodyData();
@@ -1455,7 +1473,7 @@ REPEAT_ANALYSE:
                 }
             }
             break;
-            
+
         default:
             message->releaseBodyData();
             delete (message);

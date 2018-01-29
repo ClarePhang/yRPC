@@ -57,7 +57,7 @@ public: // observer function
     virtual int registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv = NULL);
     virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL);
 
-public:
+private:
     static size_t getUserData(void *msg, void **data_ptr, size_t *data_len);
     
 private:
@@ -72,6 +72,7 @@ private:
     static int errorACKMessage(void *fdp, void *msg);
     static void releaseRPCMessage(void *arg);
     static void signalHandler(int signo);
+    static void businessHandler(void *msg);
     static void addSendWorker(void *worker);
     static int registerObserverHandler(void *fdp, void *msg);
     static int unregisterObserverHandler(void *fdp, void *msg);

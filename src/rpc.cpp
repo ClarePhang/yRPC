@@ -30,10 +30,3 @@ ERPC *ERPC::getInstance(void)
     return m_erpc;
 }
 
-size_t ERPC::getUserData(void *msg, void **data_ptr, size_t *data_len)
-{
-    return RPCCore::getUserData(msg, data_ptr, data_len);
-}
-
-
-
