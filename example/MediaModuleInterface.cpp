@@ -54,12 +54,9 @@ int MediaModule::mediaControl(MediaControlEnum ctl, unsigned int time)
     return result;
 }
 
-void MediaModule::mediaStateChanged(void *arg)
+void MediaModule::mediaStateChanged(void *msg, void *data, size_t len)
 {
-    size_t len = 0;
-    void *data_ptr = NULL;
-    len = ERPC::getUserData(arg, &data_ptr, NULL);
     if(m_observer_handler)
-        m_observer_handler(data_ptr, len);
+        m_observer_handler(data, len);
 }
 

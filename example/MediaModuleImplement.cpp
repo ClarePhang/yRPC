@@ -40,15 +40,12 @@ int MediaModule::startMedisBusiness(void)
     return 0;
 }
 
-void MediaModule::mediaControl(void *arg)
+void MediaModule::mediaControl(void *msg, void *data, size_t len)
 {
     MediaControlStr mc;
-    size_t data_len = 0;
-    void *data_ptr = NULL;
     unsigned char response = 0;
 
-    ERPC::getUserData(arg, &data_ptr, &data_len);
-    DeserialMediaControlStr(data_ptr, &mc);
+    DeserialMediaControlStr(data, &mc);
 
     switch(mc.control_way)
     {
@@ -65,11 +62,11 @@ void MediaModule::mediaControl(void *arg)
             break;
             
         case prevMedia:
-            printf("switch media to previous.\n");
+            //printf("switch media to previous.\n");
             break;
             
         case nextMedia:
-            printf("switch media to next.\n");
+            //printf("switch media to next.\n");
             break;
             
         case speedMedia:
@@ -88,7 +85,7 @@ void MediaModule::mediaControl(void *arg)
             break;
     }
 
-    m_rpc->setResponse(arg, (void *)&response, 1);
+    m_rpc->setResponse(msg, (void *)&response, 1);
 }
 
 void *MediaModule::MediaBusinessThread(void *arg)

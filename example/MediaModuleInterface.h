@@ -28,7 +28,7 @@ public:
     static int mediaControl(MediaControlEnum ctl, unsigned int time);
 
 private:
-    static void mediaStateChanged(void *arg);
+    static void mediaStateChanged(void *msg, void *data, size_t len);
     
 private:
     string m_name;

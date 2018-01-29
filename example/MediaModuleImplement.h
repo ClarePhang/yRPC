@@ -25,7 +25,7 @@ public:
     int startMedisBusiness(void);
 
 public:
-    static void mediaControl(void *arg);
+    static void mediaControl(void *msg, void *data, size_t len);
 
 private:
     static void *MediaBusinessThread(void *arg);

@@ -21,6 +21,9 @@ void stateChange(void *data, size_t len)
 void *business_thread(void *arg)
 {
     int result = -1;
+    float timeuse = 0.0;
+    unsigned int count = 0;
+    struct timeval start, end;
     
     sleep(1);
 
@@ -34,12 +37,22 @@ void *business_thread(void *arg)
     
     while(true)
     {
-        sleep(10);
+        sleep(5);
         result = media.mediaControl(stopMedia, 9);
         if(result == 0)
         {
             printf("Control media ok\n");
         }
+
+        gettimeofday(&start, NULL);
+        for(count = 0; count < 10000; count++)
+        {
+            media.mediaControl(prevMedia, 3);
+        }
+        gettimeofday(&end, NULL);
+        timeuse = (1000000*(end.tv_sec - start.tv_sec) + (float)(end.tv_usec - start.tv_usec))/1000;
+        printf("--------- 1000 times call -----------\n");
+        printf("--------- timeuse:%2.03f ms ---------\n",timeuse);
     }
     
     pthread_exit(NULL);
