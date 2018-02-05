@@ -14,3 +14,8 @@ arm:
 clean:
 	cd ./src/ && make clean
 	cd ./example/ && make clean
+
+distclean:
+	cd ./src/ && make distclean
+	cd ./example/ && make clean
+

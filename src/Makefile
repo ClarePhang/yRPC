@@ -60,3 +60,12 @@ clean:
 	cd ./libthreadpool && make clean
 	cd ./data_structure/ && make clean
 	rm *.o
+
+distclean:
+	cd ./message && make clean
+	cd ./libevent/ && make clean
+	cd ./libinifile/ && make clean
+	cd ./libthreadpool && make clean
+	cd ./data_structure/ && make clean
+	rm *.o *.so
+	
