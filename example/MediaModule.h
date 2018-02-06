@@ -1,7 +1,7 @@
 /* MediaModule.h
  * Date  : 2017-11-22
  * Author: Konishi
- * Email : konishi5202@126.com
+ * Email : konishi5202@163.com
  */
 #ifndef MEDIAMODULE_H__
 #define MEDIAMODULE_H__

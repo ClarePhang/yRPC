@@ -3,7 +3,7 @@
  * @details     An embedded Remote Procedure Call system.
  * @author      Konishi
  * @version     V0.2
- * @email       konishi5202@126.com
+ * @email       konishi5202@163.com
  * @date        2018-01-30
 ****************************************************************************************/
 #ifndef RPC_H__

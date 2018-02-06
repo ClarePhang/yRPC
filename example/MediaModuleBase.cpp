@@ -1,7 +1,7 @@
 /* MediaModuleBase.cpp
  * Date  : 2017-11-22
  * Author: Konishi
- * Email : konishi5202@126.com
+ * Email : konishi5202@163.com
  */
 #include <string>
 #include <stdio.h>
