@@ -6,9 +6,9 @@
 #include <sys/time.h>
 
 #include "rpc.h"
-#include "MediaModuleInterface.h"
+#include "MediaModule.h"
 
-MediaModule media;
+MediaModule *media = NULL;
 
 void stateChange(void *data, size_t len)
 {
@@ -26,10 +26,10 @@ void *business_thread(void *arg)
     struct timeval start, end;
     
     sleep(1);
-
-    media.mediaControl(playMedia, 9);
-    
-    result = media.registerStateHandler(stateChange);
+    printf("11111111111\n");
+    media->mediaControl(playMedia, 9);
+    printf("22222222222\n");
+    result = media->registerStateHandler(stateChange);
     if(result == 0)
         printf("register state change handler OK.\n");
     else
@@ -38,7 +38,7 @@ void *business_thread(void *arg)
     while(true)
     {
         sleep(5);
-        result = media.mediaControl(stopMedia, 9);
+        result = media->mediaControl(stopMedia, 9);
         if(result == 0)
         {
             printf("Control media ok\n");
@@ -47,7 +47,7 @@ void *business_thread(void *arg)
         gettimeofday(&start, NULL);
         for(count = 0; count < 10000; count++)
         {
-            media.mediaControl(prevMedia, 3);
+            media->mediaControl(prevMedia, 3);
         }
         gettimeofday(&end, NULL);
         timeuse = (1000000*(end.tv_sec - start.tv_sec) + (float)(end.tv_usec - start.tv_usec))/1000;
@@ -64,6 +64,7 @@ int main(int argc, char *argv[])
     ERPC *server = NULL;
     pthread_t business_id;
 
+    // 1. get RPC instance
     server = ERPC::getInstance();
     if(NULL == server)
     {
@@ -71,12 +72,21 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // 2. get Module instance
+    media = MediaModule::getInstance();
+    if(NULL == media)
+    {
+        printf("malloc media module failed!\n");
+        return -1;
+    }
+    
+    // 3. init RPC
     server->initRPC(argv[0], "../conf/rpc.conf");
 
-    media.setRPC(server);
-    
+    // 4.start RPC framework
     server->start();
 
+    // 5.start app business
     result = pthread_create(&business_id, NULL, business_thread, NULL);
     if(result != 0)
         server->runUntilAskedToQuit(false);

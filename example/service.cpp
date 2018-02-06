@@ -6,29 +6,38 @@
 #include <sys/time.h>
 
 #include "rpc.h"
-#include "MediaModuleImplement.h"
+#include "MediaModule.h"
 
 int main(int argc, char *argv[])
 {
-    MediaModule media;
     ERPC *server = NULL;
+    MediaModule *media = NULL;
 
-    // RPC init
+    // 1.get RPC instance
     server = ERPC::getInstance();
     if(NULL == server)
     {
         printf("malloc RPC core failed!\n");
         return -1;
     }
-    
+    // 2.get Module instance
+    media = MediaModule::getInstance();
+    if(NULL == media)
+    {
+        printf("malloc Media Module pointer failed!\n");
+        return -1;
+    }
+
+    // 3. init RPC
     server->initRPC(argv[0], "../conf/rpc.conf");
-
-    media.setRPC(server);
-    server->registerService("mediaControl", media.mediaControl);
-    server->createObserver("mediaState");
-
+    
+    // 4.start RPC framework
     server->start();
-    media.startMedisBusiness();
+    
+    // 5.start module business
+    media->startModule();
+    
+    // 6.go into monitor
     server->runUntilAskedToQuit(true);
 
     return 0;

@@ -12,10 +12,6 @@
 
 using namespace std;
 
-#define Interface class  /**< used to define a interface class */
-#define Implement class  /**< used to define a implement class */
-
-
 typedef void (*ServiceHandler)(void *msg, void *data, size_t len);
 typedef void (*ObserverHandler)(void *msg, void *data, size_t len);
 
@@ -23,7 +19,7 @@ typedef void (*ObserverHandler)(void *msg, void *data, size_t len);
  * @class ERPC
  * @brief ERPC interface class
 ***************************************************************************************/
-Interface ERPC
+class ERPC
 {
 public:
     ERPC();
@@ -100,7 +96,7 @@ public:
      * -  0 : remote call service function ok, and response data will be put in recv and rlen.
      * - -1 : remote call failed!
      * @note  1.If you don't care about the data return from remote service, just set \n
-     *          recv = NULL and rlen = NULL, or recv = NULL and *rlen = 0.
+     *          recv = NULL and rlen = NULL, or recv = NULL and *rlen = 0.\n
      *        2.If you pass tv = NULL, or *tv = {0, 0}, ERPC system will use ERPC default\n
      *          timeout configuration.
      */
