@@ -60,6 +60,7 @@ UINTHash RPCCore::m_proxy_hash;
 StringHash RPCCore::m_func_hash;
 COMMDriver RPCCore::m_comm_base;
 ObserverHash RPCCore::m_observer;
+StringHash RPCCore::m_observer_hash;
 ThreadPool *RPCCore::m_threadpool;
 struct timeval RPCCore::m_conn_tv;
 struct timeval RPCCore::m_comm_tv;
@@ -83,6 +84,7 @@ RPCCore::RPCCore()
     LIST_INIT(&m_work_head);
     m_frame_id = 0;
     m_observer.clear();
+    m_observer_hash.clear();
     m_threadpool = NULL;
     m_send_thread_id = 0;
     m_connect_hash.clear();
@@ -103,6 +105,7 @@ RPCCore::~RPCCore()
     LIST_INIT(&m_work_head);
     m_frame_id = 0;
     m_observer.clear();
+    m_observer_hash.clear();
     m_threadpool = NULL;
     m_send_thread_id = 0;
     m_connect_hash.clear();
@@ -614,7 +617,7 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     struct timeval tv = {0, 0};
     struct WorkerEntry *worker = NULL;
     string observer_handler(observer);
-    ServiceHandler func_handler = NULL;
+    ObserverHandler func_handler = NULL;
     string invoke_func(INVOKEOBSERVERFUNC);
     
     if(false == m_run_state)
@@ -648,7 +651,7 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
 
     // local observer call
     observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
-    func_handler = (ServiceHandler)m_func_hash.find(observer_handler);
+    func_handler = (ObserverHandler)m_observer_hash.find(observer_handler);
     if(NULL != func_handler)
     {
         request->setHandler((void *)func_handler);
@@ -713,7 +716,7 @@ int RPCCore::registerObserver(const string &module, const string &observer, Obse
     observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
     if(process == m_process)  // module in current process
     {
-        m_func_hash.insert(observer_handler, (void *)func);
+        m_observer_hash.insert(observer_handler, (void *)func);
         return 0;
     }
     
@@ -778,7 +781,7 @@ int RPCCore::registerObserver(const string &module, const string &observer, Obse
     proxy_impl.destroy();
 
     if((0 == result) && response)
-        m_func_hash.insert(observer_handler, (void *)func);
+        m_observer_hash.insert(observer_handler, (void *)func);
     
     if(response)
     {
@@ -825,7 +828,7 @@ int RPCCore::unregisterObserver(const string &module, const string &observer, st
     observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
     if(process == m_process)  // module in current process
     {
-        m_func_hash.remove(observer_handler);
+        m_observer_hash.remove(observer_handler);
         return 0;
     }
     
@@ -890,7 +893,7 @@ int RPCCore::unregisterObserver(const string &module, const string &observer, st
     proxy_impl.destroy();
 
     if((0 == result) && response)
-        m_func_hash.remove(observer_handler);
+        m_observer_hash.remove(observer_handler);
 
     if(response)
     {
@@ -1440,7 +1443,7 @@ REPEAT_ANALYSE:
                 {
                     string observer_handler(message->getModule());
                     observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
-                    func_handler = (ObserverHandler)m_func_hash.find(observer_handler);
+                    func_handler = (ObserverHandler)m_observer_hash.find(observer_handler);
                     if(NULL == func_handler)
                     {
                         K_ERROR("RPC : does't has %s observer function, please check!\n", message->getModule().c_str());

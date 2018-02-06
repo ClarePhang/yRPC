@@ -92,6 +92,7 @@ private:
     static StringHash m_func_hash;
     static COMMDriver m_comm_base;
     static ObserverHash m_observer;
+    static StringHash m_observer_hash;
     static ThreadPool *m_threadpool;
     static struct timeval m_conn_tv;
     static struct timeval m_comm_tv;
