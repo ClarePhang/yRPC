@@ -16,13 +16,23 @@ all:
 	g++ app.cpp -o app $(INC) $(LIB) -L./ -lMediaModule -Wall
 	g++ service.cpp  -o service $(INC) $(LIB) -L./ -lMediaModule -Wall
 
-arm:
+imx6:
 	$(HCC) $(HCFLAGS) MediaModule.cpp -c -o MediaModule.o -shared -fPIC $(INC) -Wall
 	$(HCC) $(HCFLAGS) MediaModuleBase.cpp -c -o MediaModuleBase.o -shared -fPIC $(INC) -Wall
-	$(HAR) $(HCFLAGS) -crv libMediaModule.a *.o
+	$(HAR) -crv libMediaModule.a *.o
 	#$(HCC) $(HCFLAGS) -shared -fPIC -o libMediaModule.so *.o
 	$(HCC) $(HCFLAGS) app.cpp -o app $(INC) $(LIB) -L./ -lMediaModule -Wall
 	$(HCC) $(HCFLAGS) service.cpp -o service $(INC) $(LIB) -L./ -lMediaModule -Wall
+
+ACC += arm-linux-g++
+AAR += arm-linux-ar
+arm:
+	$(ACC) MediaModule.cpp -c -o MediaModule.o -shared -fPIC $(INC) -Wall
+	$(ACC) MediaModuleBase.cpp -c -o MediaModuleBase.o -shared -fPIC $(INC) -Wall
+	$(AAR) -crv libMediaModule.a *.o
+	#$(ACC) -shared -fPIC -o libMediaModule.so *.o
+	$(ACC) app.cpp -o app $(INC) $(LIB) -L./ -lMediaModule -Wall
+	$(ACC) service.cpp  -o service $(INC) $(LIB) -L./ -lMediaModule -Wall
 
 clean:
 	rm app service *.o *.a
