@@ -1023,6 +1023,7 @@ int RPCCore::unregisterObserverHandler(void *fdp, void *msg)
 void *RPCCore::sendThread(void *arg)
 {
     int result = -1;
+    unsigned int gap;
     size_t send_len = 0;
     void *send_data = NULL;
     void *connect_fd = NULL;
@@ -1112,6 +1113,8 @@ void *RPCCore::sendThread(void *arg)
                     m_connect_list.remove(connect_tmp_fd);
                     m_comm_base.disconnect(connect_tmp_fd);
                 }
+                gap = rand()%5;
+                usleep(gap*1000);
                 goto REPEAT_CONNECT;
             }
 
@@ -1202,15 +1205,17 @@ REPEAT_SEND:
         delete (response);
     }
     
-    return 0;
+    return result;
 }
 
 int RPCCore::recvLinkMessage(void *fdp, void *msg)
 {
+    int result = -1;
     struct timeval tv;
+    size_t link_len = 0;
+    void *link_data = NULL;
     Message *response = NULL;
     Message *request = (Message *)msg;
-    struct WorkerEntry *worker = NULL;
     
     response = new Message();
     if(NULL == response)
@@ -1221,7 +1226,7 @@ int RPCCore::recvLinkMessage(void *fdp, void *msg)
 
     /* init message head */
     tv = request->getTimeoutTV();
-    response->initApplyResponseMessage(&tv, request->getMessageID(), RPCSUCCESS);
+    response->initLinkResponseMessage(&tv, request->getMessageID(), RPCSUCCESS);
     /* init body head */
     response->setSender(m_process);
     response->setRecver(request->getSender());
@@ -1229,16 +1234,14 @@ int RPCCore::recvLinkMessage(void *fdp, void *msg)
     response->mallocBodyData(NULL, 0);
     response->updateBodySize();
 
-    worker = (struct WorkerEntry *)malloc(sizeof(struct WorkerEntry));
-    if(NULL == worker)
-    {
-        K_ERROR("RPC : malloc WorkerEntry struct failed!\n");
-        response->releaseBodyData();
-        delete (response);
-        return -1;
-    }
-    worker->message = (void *)response;
-    addSendWorker((void *)worker);
+REPEAT_SEND:
+    result = response->serializeMessage(&link_data, &link_len);
+    if(0 != result)
+        goto REPEAT_SEND;
+    m_comm_base.send(fdp, link_data, link_len);
+    response->releaseSerializeMessage(link_data);
+    response->releaseBodyData();
+    delete (response);
     
     return 0;
 }
