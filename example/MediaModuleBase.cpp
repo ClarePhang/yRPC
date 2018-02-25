@@ -51,7 +51,7 @@ int MediaModuleBase::registerStateHandler(MediaStateChanged handler)
     if(NULL == getHSAEERPCInstance())
         return -1;
     
-    result = m_rpc->registerObserver("MediaModule", "mediaState", mediaStateChanged);
+    result = m_rpc->registerObserver(MEDIAMODULENAME, "mediaState", mediaStateChanged);
     if(result)
         return result;
 
@@ -73,7 +73,7 @@ int MediaModuleBase::mediaControl(MediaControlEnum ctl, unsigned int time)
     mc.control_way = ctl;
     mc.control_para = time;
     SerialMediaControlStr((void *)send, &mc);
-    result = m_rpc->proxyCall("MediaModule", string("mediaControl"), (void *)send, 5, (void *)recv, &recv_len);
+    result = m_rpc->proxyCall(MEDIAMODULENAME, string("mediaControl"), (void *)send, 5, (void *)recv, &recv_len);
     
     return result;
 }

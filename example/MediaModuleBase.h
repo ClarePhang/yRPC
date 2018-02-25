@@ -13,7 +13,7 @@
 
 using namespace std;
 
-#define MEDIAMODULENAME  "MediaModule"
+#define MEDIAMODULENAME  "Media"
 
 class MediaModuleBase : public MediaModule
 {
