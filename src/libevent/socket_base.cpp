@@ -30,7 +30,7 @@ int SocketBaseOpt::initSockaddr(struct sockaddr_un &s_addr, const char *path)
         return -1;
     }
 
-    K_INFO("SocketBase : using %s as localsocket addr.\n", path);
+    //K_INFO("SocketBase : using %s as localsocket addr.\n", path);
     bzero(&s_addr, sizeof(struct sockaddr_un));
     s_addr.sun_family = AF_UNIX;
     strcpy(s_addr.sun_path,path);
@@ -53,12 +53,12 @@ int SocketBaseOpt::initSockaddr(struct sockaddr_in &s_addr, const char *ip, unsi
     s_addr.sin_port   = htons(port);
     if(strncasecmp(ip,"INADDR_ANY",10) == 0)
     {
-        K_INFO("SocketBase : using INADDR_ANY:%d as ip addr.\n",port);
+        //K_INFO("SocketBase : using INADDR_ANY:%d as ip addr.\n",port);
         s_addr.sin_addr.s_addr = INADDR_ANY;
     }
     else
     {
-        K_INFO("SocketBase : using %s:%d as ip addr.\n",ip,port);
+        //K_INFO("SocketBase : using %s:%d as ip addr.\n",ip,port);
         result = inet_aton(ip,(struct in_addr *)&s_addr.sin_addr.s_addr);
         if(result == 0)
         {
