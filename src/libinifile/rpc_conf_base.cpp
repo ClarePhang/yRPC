@@ -19,8 +19,8 @@
 #define K_WARN    printf
 #define K_ERROR   printf
 
-#define USING_DEBUG
-//#undef USING_DEBUG
+//#define USING_DEBUG
+#undef USING_DEBUG
 
 #define RPCCONFIG_PATH_ENV  "RPCCONFIG_PATH"
 #define RPC_SELF_CHECK_ENV  "RPCCONFIG_CHECK"
@@ -80,7 +80,7 @@ void RPCConfigBase::printSection(void)
         K_ERROR("RPCConfig : you have does't load a config file!\n");
         return ;
     }
-    #ifdef USING_DEBUG
+
     K_INFO("RPCConfig : Section contains\n");
     for(it = m_inifile.begin(), it++; it != m_inifile.end(); ++it)
         K_INFO("          %s\n", it->first.c_str());
@@ -90,7 +90,6 @@ void RPCConfigBase::printSection(void)
         if(0 != it->first.length())
             K_INFO("           %s\n", it->first.c_str());
     }
-    #endif
     K_INFO("\n");
 }
 
