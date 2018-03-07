@@ -10,13 +10,13 @@ all:
 	cd ./message/ && make
 	cd ./libevent/ && make
 	cd ./libinifile/ && make
-	cd ./libthreadpool && make
+	cd ./libthreadpool/ && make
 	cd ./data_structure/ && make
-	g++ rpc.cpp -c -o rpc.o -fPIC $(INC) -Wall
+	g++ rpc.cpp -c -o rpc.o $(INC) -fPIC -Wall
 	g++ rpc_core.cpp -c -o rpc_core.o $(INC) -fPIC -Wall
 	g++ rpc_proxy.cpp -c -o rpc_proxy.o $(INC) -fPIC -Wall
 	g++ rpc_observer.cpp -c -o rpc_observer.o $(INC) -fPIC -Wall
-	g++ -shared -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_linux/*.a ./libinifile/*.o ./libinifile/lib_linux/*.a ./libthreadpool/lib_linux/*.a ./data_structure/*.o
+	g++ -shared -fPIC -o librpc.so *.o ./message/*.o ./libevent/*.o ./libevent/lib_linux/*.a ./libinifile/*.o ./libinifile/lib_linux/*.a ./libthreadpool/lib_linux/*.a ./data_structure/*.o
 	strip librpc.so
 
 HCC += arm-none-linux-gnueabi-g++
@@ -27,7 +27,7 @@ imx6:
 	cd ./message/ && make imx6
 	cd ./libevent/ && make imx6 
 	cd ./libinifile/ && make imx6
-	cd ./libthreadpool && make imx6
+	cd ./libthreadpool/ && make imx6
 	cd ./data_structure/ && make imx6
 	$(HCC) $(HCFLAGS) -fPIC rpc.cpp -c -o rpc.o $(INC) -Wall
 	$(HCC) $(HCFLAGS) -fPIC rpc_core.cpp -c -o rpc_core.o $(INC) -Wall
@@ -44,7 +44,7 @@ arm:
 	cd ./message/ && make arm
 	cd ./libevent/ && make arm
 	cd ./libinifile/ && make arm
-	cd ./libthreadpool && make arm
+	cd ./libthreadpool/ && make arm
 	cd ./data_structure/ && make arm
 	$(ACC) -fPIC rpc.cpp -c -o rpc.o $(INC) -Wall
 	$(ACC) -fPIC rpc_core.cpp -c -o rpc_core.o $(INC) -Wall
@@ -57,7 +57,7 @@ clean:
 	cd ./message && make clean
 	cd ./libevent/ && make clean
 	cd ./libinifile/ && make clean
-	cd ./libthreadpool && make clean
+	cd ./libthreadpool/ && make clean
 	cd ./data_structure/ && make clean
 	rm *.o
 
@@ -65,7 +65,7 @@ distclean:
 	cd ./message && make clean
 	cd ./libevent/ && make clean
 	cd ./libinifile/ && make clean
-	cd ./libthreadpool && make clean
+	cd ./libthreadpool/ && make clean
 	cd ./data_structure/ && make clean
 	rm *.o *.so
 	
