@@ -84,13 +84,14 @@ void RPCConfigBase::printSection(void)
     K_INFO("RPCConfig : Section contains\n");
     for(it = m_inifile.begin(), it++; it != m_inifile.end(); ++it)
         K_INFO("          %s\n", it->first.c_str());
-    #else
+    #if 0
     for(it = m_inifile.begin(); it != m_inifile.end(); ++it)
     {
         if(0 != it->first.length())
             K_INFO("           %s\n", it->first.c_str());
     }
     K_INFO("\n");
+    #endif
 }
 
 void RPCConfigBase::printConfig(const string &section)
