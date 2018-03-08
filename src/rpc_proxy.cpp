@@ -71,8 +71,8 @@ int RPCProxy::wait(struct timeval &tv)
         result = pthread_cond_timedwait(&cond, &mutex, &tp);
     }
     pthread_mutex_unlock(&mutex);
-
-    return result;
+    
+    return (result != 0) ? -1 : 0;
 }
 
 void RPCProxy::wakeup(void)
