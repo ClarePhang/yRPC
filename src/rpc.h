@@ -1,8 +1,8 @@
 /*!
  * @brief       ERPC application interface
- * @details     An embedded Remote Procedure Call system.
+ * @details     An embedded Remote Procedure Call Framework.
  * @author      Konishi
- * @version     V0.2
+ * @version     V2.3
  * @email       konishi5202@163.com
  * @date        2018-01-30
 */
