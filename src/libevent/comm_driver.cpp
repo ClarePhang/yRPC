@@ -6,6 +6,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <pthread.h>
 
@@ -45,7 +46,8 @@
 
 #define STATIC  static
 
-STATIC bool cycle_check_flag = false;
+STATIC volatile bool connect_flag = false;
+STATIC volatile bool cycle_check_flag = false;
 STATIC struct event *cycle_check_event = NULL;
 STATIC struct event_base *event_main_base = NULL;
 STATIC struct event_base *event_accept_base = NULL;
@@ -60,10 +62,11 @@ STATIC CommEventHandler comm_event_handler_ptr = NULL;
 
 STATIC void cycle_check_handler(evutil_socket_t fd, short event, void *arg)
 {
-    if(!cycle_check_event)
+    struct event *base = (struct event *)arg;
+    if(base == NULL)
         return ;
     
-    evtimer_add(cycle_check_event, &cycle_check_tv);
+    evtimer_add(base, &cycle_check_tv);
     
     if(cycle_check_flag && comm_event_handler_ptr)
         comm_event_handler_ptr(COMMEventCheck, NULL, NULL, 0);
@@ -121,9 +124,8 @@ STATIC void comm_event_handler(struct bufferevent *bev, short events, void *user
     {
         if(events & BEV_EVENT_CONNECTED)  // connect ok
         {
-            K_INFO("COMM : connecting to server OK!\n");
-
             pthread_mutex_lock(&comm_connect_mutex);
+            connect_flag = true;
             pthread_cond_signal(&comm_connect_cond);
             pthread_mutex_unlock(&comm_connect_mutex);
 
@@ -141,6 +143,8 @@ STATIC void comm_event_handler(struct bufferevent *bev, short events, void *user
             #else
             bufferevent_setcb(bev, comm_read_handler, NULL, comm_event_handler, NULL);
             #endif
+            bufferevent_enable(bev, EV_READ | EV_WRITE);
+
             if(comm_event_handler_ptr)
                 comm_event_handler_ptr(COMMEventConnect, (void *)bev, NULL, 1);
             return ;
@@ -153,6 +157,11 @@ STATIC void comm_event_handler(struct bufferevent *bev, short events, void *user
         {
             K_ERROR("COMM : connecting to server error:%s!\n",strerror(errno));
         }
+        
+        pthread_mutex_lock(&comm_connect_mutex);
+        connect_flag = false;
+        pthread_cond_signal(&comm_connect_cond);
+        pthread_mutex_unlock(&comm_connect_mutex);
     }
     else // other event in using
     {
@@ -173,6 +182,8 @@ STATIC void comm_event_handler(struct bufferevent *bev, short events, void *user
                 K_WARN("COMM : write data from %p timeout!\n", bev);
                 if(comm_event_handler_ptr)
                     comm_event_handler_ptr(COMMEventSTimeout, (void *)bev, NULL, 0);
+
+                // if timeout, event will disable read/write,so:
                 if(!(bufferevent_get_enabled(bev) & EV_WRITE))
                     bufferevent_enable(bev, EV_WRITE);
             }
@@ -180,7 +191,7 @@ STATIC void comm_event_handler(struct bufferevent *bev, short events, void *user
         }
         else if(events & BEV_EVENT_EOF)
         {
-            K_ERROR("COMM : Connection closed!\n");
+            //K_ERROR("COMM : Connection closed!\n");
         }
         else if(events & BEV_EVENT_ERROR)
         {
@@ -193,7 +204,7 @@ STATIC void comm_event_handler(struct bufferevent *bev, short events, void *user
             //K_ERROR("COMM : Got unknown error on the connection:%s\n",evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
         }
 
-        // disconnect or an error
+        // Passive disconnect
         if(comm_event_handler_ptr)
             comm_event_handler_ptr(COMMEventDisconnect, (void *)bev, NULL, 0);
     }
@@ -210,11 +221,9 @@ STATIC void comm_listener_handler(struct evconnlistener *listener, evutil_socket
 {
     int result = -1;
     struct bufferevent *bev = NULL;
+    struct event_base *base = (struct event_base *)user_data;
     
-    K_INFO("COMM : New connecting from %s:%d\n",inet_ntoa(((sockaddr_in *)sa)->sin_addr),
-           ntohs(((sockaddr_in *)sa)->sin_port));
-    
-    bev = bufferevent_socket_new(event_main_base, fd, LEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+    bev = bufferevent_socket_new(base, fd, LEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
     if(!bev)
     {
         K_ERROR("COMM : Could not create new bufferevent!\n");
@@ -238,7 +247,8 @@ STATIC void comm_listener_handler(struct evconnlistener *listener, evutil_socket
         return ;
     }
 
-    K_INFO("COMM : new bufferevent addr :%p\n",bev);
+    K_INFO("COMM : New connecting from %s:%d, %p\n",inet_ntoa(((sockaddr_in *)sa)->sin_addr),
+           ntohs(((sockaddr_in *)sa)->sin_port), bev);
     
     // set readcb, writecb and errcb
     #ifdef USING_WRITE_HANDLER
@@ -254,9 +264,11 @@ STATIC void comm_listener_handler(struct evconnlistener *listener, evutil_socket
 
 STATIC void *comm_main_threading(void *arg)
 {
+    struct event_base *base = (struct event_base *)arg;
+    
     K_INFO("COMM : communication event-loop id:%lu\n",pthread_self());
     
-    event_base_dispatch(event_main_base);
+    event_base_dispatch(base);
     
     K_INFO("COMM : communication event-loop exit.\n");
     pthread_exit(NULL);
@@ -264,9 +276,11 @@ STATIC void *comm_main_threading(void *arg)
 
 STATIC void *comm_accept_threading(void *arg)
 {
+    struct event_base *base = (struct event_base *)arg;
+    
     K_INFO("COMM : accept event-loop id:%lu\n",pthread_self());
     
-    event_base_dispatch(event_accept_base);
+    event_base_dispatch(base);
     
     K_INFO("COMM : accept event-loop exit.\n");
     pthread_exit(NULL);
@@ -360,7 +374,7 @@ int COMMDriver::create(CommEventHandler handler, struct sockaddr *s_addr, size_t
         return -1;
     }
 
-    evcon_listener = evconnlistener_new_bind(event_accept_base, comm_listener_handler, NULL,
+    evcon_listener = evconnlistener_new_bind(event_accept_base, comm_listener_handler, (void *)event_main_base,
         LEV_OPT_REUSEABLE|LEV_OPT_REUSEABLE_PORT|LEV_OPT_THREADSAFE|BEV_OPT_CLOSE_ON_FREE,
         -1, s_addr, s_len);
     if(!evcon_listener)
@@ -369,7 +383,7 @@ int COMMDriver::create(CommEventHandler handler, struct sockaddr *s_addr, size_t
         goto MALLOC_EVENT_FAILED;
     }
 
-    if(evtimer_assign(cycle_check_event, event_main_base, cycle_check_handler, NULL) < 0)
+    if(evtimer_assign(cycle_check_event, event_main_base, cycle_check_handler, cycle_check_event) < 0)
     {
         K_ERROR("COMM : assign event-timer failed!\n");
         goto MALLOC_EVENT_FAILED;
@@ -383,18 +397,18 @@ int COMMDriver::create(CommEventHandler handler, struct sockaddr *s_addr, size_t
 
     comm_event_handler_ptr = handler;
     
-    if(pthread_create(&comm_main_thread_id, NULL, comm_main_threading, NULL) != 0)
+    if(pthread_create(&comm_main_thread_id, NULL, comm_main_threading, event_main_base) != 0)
     {
         K_ERROR("COMM : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
         goto CREATE_THREAD_FAILED;
     }
-    if(pthread_create(&comm_accept_thread_id, NULL, comm_accept_threading, NULL) != 0)
+    if(pthread_create(&comm_accept_thread_id, NULL, comm_accept_threading, event_accept_base) != 0)
     {
         K_ERROR("COMM : pthread_create failed, errno:%d,error:%s.\n", errno, strerror(errno));
         goto CREATE_THREAD_FAILED;
     }
 
-    K_INFO("COMM : we use %s method\n",event_base_get_method(event_accept_base));
+    //K_INFO("COMM : we use %s method\n",event_base_get_method(event_accept_base));
 
     return 0;
 CREATE_THREAD_FAILED:
@@ -478,55 +492,41 @@ void COMMDriver::destroy(void)
 int COMMDriver::connect(struct sockaddr *s_addr, size_t s_len, struct timeval &tv, void **fdptr)
 {
     int result = -1;
-    struct timespec outtime;
     struct bufferevent *bev = NULL;
-    struct timeval c_tv = {0, 20*1000};  // add 20 ms for connect wait
 
-    bev = bufferevent_socket_new(event_main_base, -1, BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+    bev = bufferevent_socket_new(event_main_base, -1, BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
     if(!bev)
     {
         K_ERROR("COMM : new bufferevent_socket failed!\n");
-        goto CONNECT_FAILED;
+        return -1;
     }
 
     if((tv.tv_sec == 0) && (tv.tv_usec == 0))
         tv.tv_usec = DEFAULT_CONNECT_TIMEOUT*1000;
-    
+    bufferevent_set_timeouts(bev, &tv, NULL);
+    bufferevent_enable(bev, BEV_OPT_THREADSAFE);
     bufferevent_setcb(bev, NULL, NULL, comm_event_handler, bev);
+    
+    pthread_mutex_lock(&comm_connect_mutex);
+    connect_flag = false;
     result = bufferevent_socket_connect(bev, s_addr, s_len);
     if( -1 == result)
     {
+        pthread_mutex_unlock(&comm_connect_mutex);
         K_ERROR("COMM : Connect to %s failed, %s!\n", inet_ntoa(((sockaddr_in *)s_addr)->sin_addr), evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-        goto CONNECT_FAILED;
+        return -1;
     }
-    bufferevent_set_timeouts(bev, &tv, NULL);
-    bufferevent_enable(bev , EV_READ|EV_WRITE);
 
     // wait connect back
-    pthread_mutex_lock(&comm_connect_mutex);
-    clock_gettime(CLOCK_REALTIME,&outtime);
-    evutil_timeradd(&tv, &c_tv, &c_tv);
-    tp_tvaddtp(&c_tv, &outtime, &outtime);
-    result = pthread_cond_timedwait(&comm_connect_cond, &comm_connect_mutex, &outtime);
+    result = pthread_cond_wait(&comm_connect_cond, &comm_connect_mutex);
     pthread_mutex_unlock(&comm_connect_mutex);
-    if(ETIMEDOUT == result)
-    {
-        K_ERROR("COMM : connect to %s timeout!\n",inet_ntoa(((sockaddr_in *)s_addr)->sin_addr));
-        goto CONNECT_FAILED;
-    }
-    else if(result < 0)
-    {
-        K_ERROR("COMM : connect to %s error, %s!\n",inet_ntoa(((sockaddr_in *)s_addr)->sin_addr), strerror(errno));
-        goto CONNECT_FAILED;
-    }
-
+    if((0 != result) || (false == connect_flag))
+        return -1;
+    
     if(fdptr)
         *fdptr = (void *)bev;
     
     return 0;
-
-CONNECT_FAILED:
-    return -1;
 }
 
 void COMMDriver::disconnect(void *fdptr)
@@ -534,6 +534,9 @@ void COMMDriver::disconnect(void *fdptr)
     struct bufferevent *bev = (struct bufferevent *)fdptr;
     if(bev)
     {
+        // Take the initiative to disconnect
+        if(comm_event_handler_ptr)
+            comm_event_handler_ptr(COMMEventDisconnect, (void *)bev, NULL, 1);
         bufferevent_set_timeouts(bev, NULL, NULL);
         bufferevent_free(bev);
     }
