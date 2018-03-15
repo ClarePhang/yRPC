@@ -56,12 +56,26 @@ void RPCProxy::destroy(void)
     pthread_attr_destroy(&attr);
 }
 
+void RPCProxy::lock(void)
+{
+    pthread_mutex_lock(&mutex);
+}
+
+void RPCProxy::unlock(void)
+{
+    pthread_mutex_unlock(&mutex);
+}
+
+void RPCProxy::wakeup(void)
+{
+    pthread_cond_signal(&cond);
+}
+
 int RPCProxy::wait(struct timeval &tv)
 {
     int result = -1;
-    
+
     struct timespec tp;
-    pthread_mutex_lock(&mutex);
     if((tv.tv_sec == 0) && (tv.tv_usec == 0))
         result = pthread_cond_wait(&cond, &mutex);
     else
@@ -70,16 +84,8 @@ int RPCProxy::wait(struct timeval &tv)
         tp_tvaddtp(&tv, &tp, &tp);
         result = pthread_cond_timedwait(&cond, &mutex, &tp);
     }
-    pthread_mutex_unlock(&mutex);
     
     return (result != 0) ? -1 : 0;
-}
-
-void RPCProxy::wakeup(void)
-{
-    pthread_mutex_lock(&mutex);
-    pthread_cond_signal(&cond);
-    pthread_mutex_unlock(&mutex);
 }
 
 void RPCProxy::setRequestMsg(void *msg)

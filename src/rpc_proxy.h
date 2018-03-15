@@ -16,10 +16,12 @@ public:
     ~RPCProxy();
 
     int init(void);
-    void destroy(void);    
-    int wait(struct timeval &tv);
+    void destroy(void);
+    void lock(void);
+    void unlock(void);
     void wakeup(void);
-
+    int wait(struct timeval &tv);
+    
     void setRequestMsg(void *msg);
     void *getRequestMsg(void);
     void setResponseMsg(void *msg);
