@@ -67,6 +67,7 @@ public:
      *                    the registration will fail.
      * @param[in] func   The pointer to the function of the 'service'.
      * @return 
+     * -  1 : the service has been registered, func won't replace the old.
      * -  0 : register service at func ok.
      * - -1 : register service failed!
      */
@@ -91,6 +92,7 @@ public:
      * @return 
      * -  0 : return response data to remote call OK.
      * - -1 : return response data failed!
+     * - -2 : ERPC framework has not been running.
      */
     virtual int setResponse(void *msg, void *response_data, size_t response_len) = 0;
     /*!
@@ -109,6 +111,7 @@ public:
      * @return 
      * -  0 : remote call service function ok, and response data will be put in recv and rlen.
      * - -1 : remote call failed!
+     * - -2 : ERPC framework has not been running.
      * @note  1.If you don't care about the data return from remote service, just set 
      *          recv = NULL and rlen = NULL, or recv = NULL and *rlen = 0.\n
      *        2.If you pass tv = NULL, or *tv = {0, 0}, ERPC system will use ERPC default
@@ -123,6 +126,7 @@ public:
      * @return 
      * -  0 : start ERPC framework OK.
      * - -1 : start ERPC framework failed!
+     * - -2 : ERPC configuration file has not been init before you start ERPC framework.
      */
     virtual int start(void) = 0;
     /*!
@@ -131,9 +135,10 @@ public:
      * @param[in] state  If start() calling OK, and you business threads runing OK, pass true;\n
      *      Any other situation, please pass false to stop ERPC framework.
      * @return 
-     * - -1 : Mean some exception has been occured.
      * -  0 : The ERPC framework has been normal exited.\n
      *        This will happened by you press "Ctrl + C" or "kill -2" to the process.
+     * - -1 : Mean some exception has been occured.
+     * - -2 : ERPC framework has not been running.
      * @note  This function will not take the initiative to quit.
      */
     virtual int runUntilAskedToQuit(bool state) = 0;
@@ -143,6 +148,7 @@ public: // observer function
      * Create an observer object to ERPC system.
      * @param[in] observer  The name of observer object you want to create.
      * @return
+     * -  1 : the observer has created, just use it.
      * -  0 : create observer object ok.
      * - -1 : create observer object failed.
      */
@@ -164,6 +170,7 @@ public: // observer function
      * @return
      * -  0 : invoke observers OK.
      * - -1 : invoke observers failed!
+     * - -2 : ERPC framework has not been running.
      */
     virtual int invokeObserver(const string &observer, void *data, size_t len) = 0;
     /*!
@@ -175,6 +182,7 @@ public: // observer function
      * @return
      * -  0 : register observer OK.
      * - -1 : register observer failed.
+     * - -2 : ERPC framework has not been running.
      */
     virtual int registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv = NULL) = 0;
     /*!
@@ -185,6 +193,7 @@ public: // observer function
      * @return
      * -  0 : unregister observer OK.
      * - -1 : unregister observer failed.
+     * - -2 : ERPC framework has not been running.
      */
     virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL) = 0;
 
