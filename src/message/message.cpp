@@ -10,11 +10,6 @@
 
 #include "message.h"
 
-#define K_DEBUG   printf
-#define K_INFO    printf
-#define K_WARN    printf
-#define K_ERROR   printf
-
 Message::Message()
 {
     m_handler = NULL;
@@ -212,10 +207,8 @@ int Message::mallocBodyData(size_t user_len)
     
     m_user_data = (void *)malloc(user_len);
     if(NULL == m_user_data)
-    {
-        K_ERROR("Message : malloc user data failed!\n");
         return -1;
-    }
+    
     m_user_data_len = user_len;
     return 0;
 }
@@ -231,10 +224,8 @@ int Message::mallocBodyData(void *user_data, size_t user_len)
     {
         m_user_data = (void *)malloc(user_len);
         if(NULL == m_user_data)
-        {
-            K_ERROR("Message : malloc user data failed!\n");
             return -1;
-        }
+        
         m_user_data_len = user_len;
         memcpy(m_user_data, user_data, user_len);
     }
@@ -286,11 +277,8 @@ int Message::serializeMessage(void **data, size_t *len)
 
     *data = (void *)malloc(data_len);
     if(NULL == *data)
-    {
-        K_ERROR("Message : malloc serialize message struct failed!\n");
         return -1;
-    }
-
+    
     ptr = (unsigned char *)*data;
     m_message_head.SerializeMessageHead((void *)ptr);
     ptr += MESSAGE_HEAD_SIZE;
