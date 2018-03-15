@@ -21,22 +21,11 @@
 
 using namespace std;
 
-struct WorkerEntry{
+struct SendListEntry{
     void *message;
-    LIST_ENTRY(WorkerEntry) worker_next;
+    LIST_ENTRY(SendListEntry) next;
 };
-LIST_HEAD(WorkerHead, WorkerEntry);
-
-#undef ANALYSERECEIVE
-#ifdef ANALYSERECEIVE
-enum AnalysePackage
-{
-    AP_INIT = 0,
-    AP_HEAD = 1,
-    AP_BODY_HEAD = 2,
-    AP_BODY_DATA = 3,
-};
-#endif
+LIST_HEAD(SendListHead, SendListEntry);
 
 class RPCCore : public ERPC
 {
@@ -58,50 +47,53 @@ public: // observer function
     virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL);
 
 private:
-    static size_t getUserData(void *msg, void **data_ptr, size_t *data_len);
-    
-private:
     RPCCore();
     virtual ~RPCCore();
 
 private:
-    static void *sendThread(void *arg);
-    static unsigned int getFrameID(void);
-    static int sendLinkMessage(void *fdp);
-    static int recvLinkMessage(void *fdp, void *msg);
-    static int errorACKMessage(void *fdp, void *msg);
-    static void releaseRPCMessage(void *arg);
     static void signalHandler(int signo);
-    static void businessHandler(void *msg);
-    static void addSendWorker(void *worker);
+    static void callBusinessHandler(void *msg);
     static int registerObserverHandler(void *fdp, void *msg);
     static int unregisterObserverHandler(void *fdp, void *msg);
-    static int analyseReceiveData(void *fdp, const void *data, size_t len);
-    static int eventHandler(unsigned int type, void *fdp, void *data, size_t len);
-    
-private:
-    pthread_t m_send_thread_id;
+    static int commEventHandler(unsigned int type, void *fdp, void *data, size_t len);
 
 private:
-    static string m_process;
+    static int requestLink(void *fdp, void *msg);
+    static int responseLink(void *fdp, void *msg);
+    static int insertSenderNode(void *message);
+    static int connectToProcess(string process, void **connect_fd);
+    static void *RPCCoreThread(void *arg);
+    
+    static int wakeupOneThread(void *msg);
+    static int responseErrorCodeACK(void *fdp, void *msg);
+    
+    static unsigned int getFrameID(void);
+    static void releaseRPCMessage(void *arg);
+    
+    static int analyseReceiveData(void *fdp, const void *data, size_t len);
+    
+private:
     static bool m_run_state;
     static bool m_conf_state;
-    static RPCConfig *m_conf;
     static RPCCore *m_rpc_core;
-    static UINTHash m_proxy_hash;
-    static StringHash m_func_hash;
+    pthread_t m_core_thread_id;
+    static string m_process_name;
     static COMMDriver m_comm_base;
-    static ObserverHash m_observer;
-    static StringHash m_observer_hash;
     static ThreadPool *m_threadpool;
     static struct timeval m_conn_tv;
     static struct timeval m_comm_tv;
-    static ProcessConfig m_self_conf;
-    static StringHash m_connect_hash;
-    static PointerList m_connect_list;
     static pthread_cond_t m_send_cond;
     static pthread_mutex_t m_send_mutex;
-    static struct WorkerHead m_work_head;
+    static pthread_mutex_t m_frame_mutex;
+    static struct SendListHead m_send_head;
+    static RPCConfig *m_conf_file;
+    static ProcessConfig m_process_conf;
+    static UINTHash m_proxy_hash;
+    static StringHash m_service_func_hash;
+    static StringHash m_observer_func_hash;
+    static ObserverHash m_observer_connect_hash;
+    static StringHash m_process_connect_hash;
+    static PointerList m_process_connect_list;
     static volatile unsigned int m_frame_id;
 };
 
