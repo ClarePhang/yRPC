@@ -262,6 +262,25 @@ STATIC void comm_listener_handler(struct evconnlistener *listener, evutil_socket
         comm_event_handler_ptr(COMMEventConnect, (void *)bev, NULL, 0);
 }
 
+STATIC int comm_socket_check(struct bufferevent *bufev)
+{
+    int err = 0;
+    char msg[1] = {0};
+    int sockfd = bufferevent_getfd(bufev);
+
+    if(sockfd < 0)
+        return -1;
+
+    errno = 0;
+    err = recv(sockfd, msg, sizeof(msg), MSG_DONTWAIT | MSG_PEEK);
+    if(err < 0 && errno != EAGAIN)
+        return -1;
+    else if(err == 0 && errno != 0)
+        return -1;
+
+    return 0;
+}
+
 STATIC void *comm_main_threading(void *arg)
 {
     struct event_base *base = (struct event_base *)arg;
@@ -332,7 +351,6 @@ void COMMDriver::cyclecheckEn(bool enable)
 {
     cycle_check_flag = enable;
 }
-
 
 // para: s_addr can be a sockaddr_in or sockaddr_un, s_len is the length of it.
 int COMMDriver::create(CommEventHandler handler, struct sockaddr *s_addr, size_t s_len)
@@ -544,18 +562,33 @@ void COMMDriver::disconnect(void *fdptr)
 
 int COMMDriver::send(const void *fdptr, const void *data, size_t size)
 {
+    size_t outlen = 0;
+    unsigned char *ptr = (unsigned char *)data;
     struct bufferevent * bev = (struct bufferevent *)fdptr;
-    
-    if(bev)
-    {
-        //K_DEBUG("COMM : send %lu, %s\n", size, (char *)data);
-        return bufferevent_write(bev, data, size);
-    }
-    else
+
+    if(NULL == bev)
     {
         K_WARN("COMM : send bufferevent is NULL!\n");
+        return -2;
     }
     
-    return -1;
+    //K_DEBUG("COMM : send %lu, %s\n", size, (char *)ptr);
+    while(true)
+    {
+        if(comm_socket_check(bev) < 0)
+            return -2;
+        outlen = evbuffer_get_length(bufferevent_get_output(bev));
+        if(outlen != 0)
+        {
+            usleep(100);
+            continue;
+        }
+
+        if(bufferevent_write(bev, ptr, size) < 0)
+            return -1;
+        break;
+    }
+    
+    return 0;
 }
 
