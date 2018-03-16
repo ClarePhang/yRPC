@@ -562,7 +562,6 @@ void COMMDriver::disconnect(void *fdptr)
 
 int COMMDriver::send(const void *fdptr, const void *data, size_t size)
 {
-    size_t outlen = 0;
     unsigned char *ptr = (unsigned char *)data;
     struct bufferevent * bev = (struct bufferevent *)fdptr;
 
@@ -573,21 +572,10 @@ int COMMDriver::send(const void *fdptr, const void *data, size_t size)
     }
     
     //K_DEBUG("COMM : send %lu, %s\n", size, (char *)ptr);
-    while(true)
-    {
-        if(comm_socket_check(bev) < 0)
-            return -2;
-        outlen = evbuffer_get_length(bufferevent_get_output(bev));
-        if(outlen != 0)
-        {
-            usleep(100);
-            continue;
-        }
-
-        if(bufferevent_write(bev, ptr, size) < 0)
-            return -1;
-        break;
-    }
+    if(comm_socket_check(bev) < 0)
+        return -2;
+    if(bufferevent_write(bev, ptr, size) < 0)
+        return -1;
     
     return 0;
 }
