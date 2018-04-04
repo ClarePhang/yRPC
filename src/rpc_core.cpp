@@ -71,6 +71,7 @@ PointerList RPCCore::m_process_connect_list;
 volatile unsigned int RPCCore::m_frame_id;
 pthread_cond_t RPCCore::m_send_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t RPCCore::m_send_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t RPCCore::m_link_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t RPCCore::m_frame_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 RPCCore::RPCCore()
@@ -539,11 +540,11 @@ int RPCCore::runUntilAskedToQuit(bool state)
     {
         sleep(1);
     }
-    printf("RPC framework exit: 1.\n");
+
     // exit send thread
     pthread_cond_signal(&m_send_cond);
     pthread_join(m_core_thread_id, NULL);
-    printf("RPC framework exit: 2.\n");
+
     // release all message
     while(NULL != LIST_FIRST(&m_send_head))
     {
@@ -553,18 +554,15 @@ int RPCCore::runUntilAskedToQuit(bool state)
         free(sender);
         sender = NULL;
     }
-    printf("RPC framework exit: 3.\n");
+
     // disconnect all socket
     for(fdp = m_process_connect_list.begin(); m_process_connect_list.hasNext(); fdp = m_process_connect_list.next())
     {
         if(fdp)
             m_comm_base.disconnect(fdp);
     }
-    printf("RPC framework exit: 4.\n");
     m_process_connect_list.clear();
-    printf("RPC framework exit: 5.\n");
     m_threadpool->destroy();
-    printf("RPC framework exit: 6.\n");
     m_comm_base.destroy();
     
     K_INFO("RPC : RPC framework will exit.\n");
@@ -641,7 +639,7 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     if(NULL != func_handler)
     {
         request->setHandler((void *)func_handler);
-        m_threadpool->addWork(LowPriority, callBusinessHandler, (void *)request, releaseRPCMessage);
+        m_threadpool->addWork(LowPriority, callBusinessHandler, (void *)request, NULL);
     }
     
     // send data to observer
@@ -1046,16 +1044,25 @@ int RPCCore::requestLink(void *fdp, void *msg)
     unsigned int frame;
     RPCProxy proxy_impl;
     size_t link_len = 0;
+    void * tmp_fd = NULL;
     void *link_data = NULL;
     Message *request = NULL;
     Message *response = NULL;
-    unsigned char deal_connect; // 0, disconnect; 1, connect
     Message *message = (Message *)msg;
+    unsigned char deal_connect; // 0, disconnect; 1, connect
+    
+    result = proxy_impl.init();
+    if(0 != result)
+    {
+        K_ERROR("RPC : init proxy service failed!\n");
+        return -1;
+    }
     
     request = new Message();
     if(NULL == request)
     {
         K_ERROR("RPC : new link message memory failed!\n");
+        proxy_impl.destroy();
         return -1;
     }
 
@@ -1065,46 +1072,61 @@ int RPCCore::requestLink(void *fdp, void *msg)
     request->setRecver(message->getRecver());
     request->mallocBodyData(NULL, 0);
     request->updateBodySize();
-
-    result = proxy_impl.init();
-    if(0 != result)
-    {
-        K_ERROR("RPC : init proxy service failed!\n");
-        releaseRPCMessage((void *)request);
-        return -1;
-    }
+    
 REPEAT_SEND:
     result = request->serializeMessage(&link_data, &link_len);
     if(0 != result)
         goto REPEAT_SEND;
-
-    m_proxy_hash.insert(frame, (void *)&proxy_impl);
+    
+    pthread_mutex_lock(&m_link_mutex);
+    tmp_fd = m_process_connect_hash.find(message->getRecver());
+    if(tmp_fd != NULL)
+    {
+        pthread_mutex_unlock(&m_link_mutex);
+        request->releaseSerializeMessage(link_data);
+        releaseRPCMessage((void *)request);
+        proxy_impl.destroy();
+        return 1;
+    }
     m_process_connect_hash.insert(message->getRecver(), fdp);
+    pthread_mutex_unlock(&m_link_mutex);
+    
+    m_proxy_hash.insert(frame, (void *)&proxy_impl);
     proxy_impl.lock();
     m_comm_base.send(fdp, link_data, link_len);
     result = proxy_impl.wait(m_comm_tv);
     response = (Message *)proxy_impl.getResponseMsg();
     proxy_impl.unlock();
     m_proxy_hash.remove(frame);
-    m_process_connect_hash.remove(message->getRecver());
     request->releaseSerializeMessage(link_data);
     proxy_impl.destroy();
     releaseRPCMessage((void *)request);
+    
+    pthread_mutex_lock(&m_link_mutex);
+    tmp_fd = m_process_connect_hash.find(message->getRecver());
+    if(tmp_fd != fdp) // confilt, new connect
+    {
+        pthread_mutex_unlock(&m_link_mutex);
+        releaseRPCMessage((void *)response);
+        return 1;
+    }
     
     if((0 == result) && response)
     {
         response->getUserData(&data, &len);
         deal_connect = *(unsigned char *)data;
-        if(deal_connect)
-        {
-            m_process_connect_hash.insert(message->getRecver(), fdp);
-        }
-        else
+        if(0 == deal_connect)
         {
             result = 1;
+            m_process_connect_hash.remove(message->getRecver());
             m_process_connect_hash.insert(message->getRecver(), response->getHandler());
         }
     }
+    else
+    {
+        m_process_connect_hash.remove(message->getRecver());
+    }
+    pthread_mutex_unlock(&m_link_mutex);
     
     releaseRPCMessage((void *)response);
     
@@ -1128,31 +1150,11 @@ int RPCCore::responseLink(void *fdp, void *msg)
         K_ERROR("RPC : new message memory failed!\n");
         return -1;
     }
-    
-    exsit_fd = m_process_connect_hash.find(request->getSender());
-    if(exsit_fd)
-    {
-        if(m_process_name < request->getSender())
-        {
-            deal_connect = 0;  // disconnect client
-        }
-        else
-        {
-            deal_connect = 1;
-        }
-    }
-    else
-    {
-        m_process_connect_hash.insert(request->getSender(), fdp);
-    }
-    
-    /* init message head */
+
     tv = request->getTimeoutTV();
     response->initLinkResponseMessage(&tv, request->getMessageID(), RPCSUCCESS);
-    /* init body head */
     response->setSender(m_process_name);
     response->setRecver(request->getSender());
-    /* init body data */
     result = response->mallocBodyData(&deal_connect, 1);
     if(0 != result)
     {
@@ -1166,10 +1168,33 @@ REPEAT_SEND:
     result = response->serializeMessage(&link_data, &link_len);
     if(0 != result)
         goto REPEAT_SEND;
-    if(deal_connect)
-        m_comm_base.send(fdp, link_data, link_len);
+
+    pthread_mutex_lock(&m_link_mutex);
+    exsit_fd = m_process_connect_hash.find(request->getSender());
+    if(exsit_fd)
+    {
+        if(m_process_name < request->getSender())
+        {
+            deal_connect = 0;  // disconnect client
+        }
+        else
+        {
+            deal_connect = 1;  // disconnect self
+            m_process_connect_hash.remove(request->getSender());
+            m_process_connect_hash.insert(request->getSender(), fdp);
+        }
+    }
     else
-        m_comm_base.send(exsit_fd, link_data, link_len);
+    {
+        m_process_connect_hash.insert(request->getSender(), fdp);
+    }
+    pthread_mutex_unlock(&m_link_mutex);
+    
+    if(deal_connect)
+        result = m_comm_base.send(fdp, link_data, link_len);
+    else
+        result = m_comm_base.send(exsit_fd, link_data, link_len);
+    
     response->releaseSerializeMessage(link_data);
     releaseRPCMessage((void *)response);
     
@@ -1270,7 +1295,9 @@ void *RPCCore::RPCCoreThread(void *arg)
         }
         
     REPEAT_CONNECT:
+        pthread_mutex_lock(&m_link_mutex);
         connect_fd = m_process_connect_hash.find(message->getRecver());
+        pthread_mutex_unlock(&m_link_mutex);
         if(NULL == connect_fd)  // connect not exsit
         {
             if(CONNECTRETRYDEFAULT == connect_count)
@@ -1284,20 +1311,13 @@ void *RPCCore::RPCCoreThread(void *arg)
 
             // when connect OK, we send a link package
             result = requestLink(connect_tmp_fd, (void *)message);
-            if(result < 0)
+            if((1 == result) || (result < 0))
             {
                 m_comm_base.disconnect(connect_tmp_fd);
                 goto REPEAT_CONNECT;
             }
-            else if(result == 1)
-            {
-                m_comm_base.disconnect(connect_tmp_fd);
-                connect_fd = m_process_connect_hash.find(message->getRecver());
-            }
-            else
-            {
-                connect_fd = connect_tmp_fd;
-            }
+            
+            connect_fd = connect_tmp_fd;
         }
         
 REPEAT_SEND: // start to send data
@@ -1307,8 +1327,6 @@ REPEAT_SEND: // start to send data
         result = m_comm_base.send(connect_fd, send_data, send_len);
         message->releaseSerializeMessage(send_data);
         send_data = NULL;
-        if(0 != result)
-            printf("Send data failed!!!!!!!!!!!!!!\n");
 
 FREE_MEMORY:
         connect_count = 0;
@@ -1352,12 +1370,9 @@ int RPCCore::responseErrorCodeACK(void *fdp, void *msg)
         return -1;
     }
 
-    /* init message head */
     tv = request->getTimeoutTV();
     response->initApplyResponseMessage(&tv, request->getMessageID(), RPCNOSPECIFYSERVICE);
-    /* init body head */
     response->setBodyHead(m_process_name, request->getSender(), request->getModule(), request->getFunction());
-    /* init body data */
     response->mallocBodyData(NULL, 0);
     response->updateBodySize();
 

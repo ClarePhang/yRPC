@@ -84,6 +84,7 @@ private:
     static struct timeval m_comm_tv;
     static pthread_cond_t m_send_cond;
     static pthread_mutex_t m_send_mutex;
+    static pthread_mutex_t m_link_mutex;
     static pthread_mutex_t m_frame_mutex;
     static struct SendListHead m_send_head;
     static RPCConfig *m_conf_file;
