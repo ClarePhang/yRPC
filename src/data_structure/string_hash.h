@@ -9,6 +9,7 @@
 #define STRING_HASH_H__
 #include <map>
 #include <string>
+#include <pthread.h>
 
 using namespace std;
 
@@ -34,6 +35,7 @@ public:
 private:
     STRING_MAP string_map;
     STRING_MAP::iterator it;
+    static pthread_rwlock_t m_rwlock;
 };
 
 #endif // STRING_HASH_H__

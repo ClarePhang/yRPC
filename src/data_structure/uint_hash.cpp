@@ -13,55 +13,79 @@
 #define K_WARN    printf
 #define K_ERROR   printf
 
+pthread_rwlock_t UINTHash::m_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
 UINTHash::UINTHash()
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     uint_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 UINTHash::~UINTHash()
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     uint_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 void UINTHash::print(void)
 {
+    pthread_rwlock_rdlock(&m_rwlock);
     K_INFO("Hash Table:\n");
     for(it = uint_map.begin(); it != uint_map.end(); it++)
         K_INFO("%d => %p\n", it->first, it->second);
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 int UINTHash::size(void)
 {
-    return uint_map.size();
+    int size = 0;
+    pthread_rwlock_rdlock(&m_rwlock);
+    size = uint_map.size();
+    pthread_rwlock_unlock(&m_rwlock);
+    return size;
 }
 
 void UINTHash::clear(void)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     uint_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 bool UINTHash::empty(void)
 {
-    return uint_map.empty();
+    bool empty = false;
+    pthread_rwlock_rdlock(&m_rwlock);
+    empty = uint_map.empty();
+    pthread_rwlock_unlock(&m_rwlock);
+    return empty;
 }
 
 void *UINTHash::find(unsigned int key)
 {
+    void *result = NULL;
+    pthread_rwlock_rdlock(&m_rwlock);
     it = uint_map.find(key);
-    return (it == uint_map.end()) ? NULL : it->second;
+    result = (it == uint_map.end()) ? NULL : it->second;
+    pthread_rwlock_unlock(&m_rwlock);
+    return result;
 }
 
 int UINTHash::remove(unsigned int key)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     it = uint_map.find(key);
-    if(it == uint_map.end())
-        return 0;
-    uint_map.erase(it);
+    if(it != uint_map.end())
+        uint_map.erase(it);
+    pthread_rwlock_unlock(&m_rwlock);
     return 0;
 }
 
 void UINTHash::remove(void *value)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     for(it = uint_map.begin(); it != uint_map.end(); it++)
     {
         if(value == it->second)
@@ -70,25 +94,33 @@ void UINTHash::remove(void *value)
             break;
         }
     }
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 int UINTHash::insert(unsigned int key, void *value)
 {
+    int result = 0;
+    pthread_rwlock_wrlock(&m_rwlock);
     it = uint_map.find(key);
     if(it != uint_map.end()) // exsit
-        return 1;
-
-    uint_map[key] = value;
-//    uint_map.insert(std::pair<int, void *>(key, value));
-    return 0;
+        result = 1;
+    else
+        uint_map[key] = value;
+//        uint_map.insert(std::pair<int, void *>(key, value));
+    pthread_rwlock_unlock(&m_rwlock);
+    return result;
 }
 
 int UINTHash::change(unsigned int key, void *value)
 {
+    int result = 0;
+    pthread_rwlock_wrlock(&m_rwlock);
     it = uint_map.find(key);
     if(it == uint_map.end()) // not exsit
-        return -1;
-    uint_map[key] = value;
-    return 0;
+        result = -1;
+    else
+        uint_map[key] = value;
+    pthread_rwlock_unlock(&m_rwlock);
+    return result;
 }
 

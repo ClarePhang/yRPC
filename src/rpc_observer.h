@@ -9,6 +9,7 @@
 #include <map>
 #include <list>
 #include <string>
+#include <pthread.h>
 
 using namespace std;
 
@@ -40,6 +41,7 @@ public:
 private:
     OBSERVER_MAP m_observer_map;
     OBSERVER_MAP::iterator m_it;
+    static pthread_rwlock_t m_rwlock;
 };
 
 #endif // RPC_OBSERVER_H__

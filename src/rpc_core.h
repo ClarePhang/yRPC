@@ -53,6 +53,7 @@ private:
 private:
     static void signalHandler(int signo);
     static void callBusinessHandler(void *msg);
+    static int getExecutableName(const string &process_name);
     static int registerObserverHandler(void *fdp, void *msg);
     static int unregisterObserverHandler(void *fdp, void *msg);
     static int commEventHandler(unsigned int type, void *fdp, void *data, size_t len);

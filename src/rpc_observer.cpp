@@ -12,67 +12,96 @@
 #define K_WARN    printf
 #define K_ERROR   printf
 
+pthread_rwlock_t ObserverHash::m_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
 ObserverHash::ObserverHash()
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     m_observer_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 ObserverHash::~ObserverHash()
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     m_observer_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 void ObserverHash::print(void)
 {
+    pthread_rwlock_rdlock(&m_rwlock);
     K_INFO("Observer Table:\n");
     for(m_it = m_observer_map.begin(); m_it != m_observer_map.end(); m_it++)
         K_INFO("       %s\n", m_it->first.c_str());
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 int ObserverHash::size(void)
 {
-    return m_observer_map.size();
+    int size = 0;
+    pthread_rwlock_rdlock(&m_rwlock);
+    size = m_observer_map.size();
+    pthread_rwlock_unlock(&m_rwlock);
+    return size;
 }
 
 int ObserverHash::size(const string &key)
 {
+    int size = 0;
+    pthread_rwlock_rdlock(&m_rwlock);
     m_it = m_observer_map.find(key);
-    if(m_it == m_observer_map.end())
-        return 0;
-    return m_it->second->size();
+    if(m_it != m_observer_map.end())
+        size = m_it->second->size();
+    pthread_rwlock_unlock(&m_rwlock);
+    return size;
 }
 
 void ObserverHash::clear(void)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     for(m_it = m_observer_map.begin(); m_it != m_observer_map.end(); m_it++)
     {
         m_it->second->clear();
         delete (m_it->second);
     }
     m_observer_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 bool ObserverHash::empty(void)
 {
-    return m_observer_map.empty();
+    bool empty = false;
+    pthread_rwlock_rdlock(&m_rwlock);
+    empty = m_observer_map.empty();
+    pthread_rwlock_unlock(&m_rwlock);
+    return empty;
 }
 
 bool ObserverHash::empty(const string &key)
 {
+    bool empty = true;
+    pthread_rwlock_rdlock(&m_rwlock);
     m_it = m_observer_map.find(key);
-    if(m_it == m_observer_map.end())
-        return true;
-    return m_it->second->empty();
+    if(m_it != m_observer_map.end())
+        empty = m_it->second->empty();
+    pthread_rwlock_unlock(&m_rwlock);
+    return empty;
 }
 
 OBSERVER_LIST_PTR ObserverHash::find(const string &key)
 {
+    OBSERVER_LIST_PTR list_ptr = NULL;
+    pthread_rwlock_rdlock(&m_rwlock);
     m_it = m_observer_map.find(key);
-    return ((m_it == m_observer_map.end()) ? NULL : m_it->second);
+    list_ptr = ((m_it == m_observer_map.end()) ? NULL : m_it->second);
+    pthread_rwlock_unlock(&m_rwlock);
+    return list_ptr;
 }
 
 void ObserverHash::remove(const string &key)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     m_it = m_observer_map.find(key);
     if(m_it != m_observer_map.end())
     {
@@ -80,49 +109,60 @@ void ObserverHash::remove(const string &key)
         delete(m_it->second);
         m_observer_map.erase(m_it);
     }
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 int ObserverHash::insert(const string &key)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     m_it = m_observer_map.find(key);
     if(m_it != m_observer_map.end())  // exsit
+    {
+        pthread_rwlock_unlock(&m_rwlock);
         return 1;
-    
+    }
     OBSERVER_LIST_PTR it = new OBSERVER_LIST;
     if(NULL == it)
     {
+        pthread_rwlock_unlock(&m_rwlock);
         K_ERROR("new observer list memory failed!\n");
         return -1;
     }
     it->clear();
     m_observer_map[key] = it;
+    pthread_rwlock_unlock(&m_rwlock);
     return 0;
 }
 
 void ObserverHash::remove(const string &key, void *fdp)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     m_it = m_observer_map.find(key);
-    if(m_it == m_observer_map.end())  // not exsit
-        return ;
-    m_it->second->remove(fdp);
+    if(m_it != m_observer_map.end())
+        m_it->second->remove(fdp);
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 int ObserverHash::insert(const string &key, void *fdp)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     m_it = m_observer_map.find(key);
     if(m_it == m_observer_map.end())  // not exsit
     {
+        pthread_rwlock_unlock(&m_rwlock);
         K_ERROR("insert observer failed, %s is not exsit!\n", key.c_str());
         return -1;
     }
-
     m_it->second->push_back(fdp);
+    pthread_rwlock_unlock(&m_rwlock);
     return 0;
 }
 
 void ObserverHash::remove(void *fdp)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     for(m_it = m_observer_map.begin(); m_it != m_observer_map.end(); m_it++)
         m_it->second->remove(fdp);
+    pthread_rwlock_unlock(&m_rwlock);
 }
 

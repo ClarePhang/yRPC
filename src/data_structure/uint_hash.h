@@ -8,6 +8,7 @@
 #ifndef UINT_HASH_H__
 #define UINT_HASH_H__
 #include <map>
+#include <pthread.h>
 
 using namespace std;
 
@@ -33,6 +34,7 @@ public:
 private:
     UINT_MAP uint_map;
     UINT_MAP::iterator it;
+    static pthread_rwlock_t m_rwlock;
 };
 
 #endif // UINT_HASH_H__

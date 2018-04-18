@@ -299,7 +299,7 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
     if(0 != result)
     {
         K_ERROR("RPC : call malloc body data failed!\n");
-        delete (request);
+        releaseRPCMessage((void *)request);
         return -1;
     }
     request->updateBodySize();
@@ -409,7 +409,6 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
     }
 
     releaseRPCMessage((void *)response);
-    
     return result;
 }
 
@@ -556,10 +555,13 @@ int RPCCore::runUntilAskedToQuit(bool state)
     }
 
     // disconnect all socket
-    for(fdp = m_process_connect_list.begin(); m_process_connect_list.hasNext(); fdp = m_process_connect_list.next())
+    for(int i = 0; i < m_process_connect_list.size();i++)
     {
-        if(fdp)
-            m_comm_base.disconnect(fdp);
+        if(0 == i)
+            fdp = m_process_connect_list.begin();
+        else
+            fdp = m_process_connect_list.next();
+        m_comm_base.disconnect(fdp);
     }
     m_process_connect_list.clear();
     m_threadpool->destroy();
@@ -886,7 +888,7 @@ void RPCCore::signalHandler(int signo)
             break;
 
         case SIGSEGV:
-            K_ERROR("RPC : Segment fault:\n");
+            K_ERROR("RPC : %s Segment fault:\n", m_process_name.c_str());
             size = backtrace(array,150);
             strings = backtrace_symbols(array,size);
             for(i = 0;i < size;i++)
@@ -912,6 +914,11 @@ void RPCCore::callBusinessHandler(void *msg)
     handler = (ServiceHandler)message->getHandler();
     if(handler)
         handler(msg, data, len);
+}
+
+int RPCCore::getExecutableName(const string &process_name)
+{
+    return 0;
 }
 
 int RPCCore::registerObserverHandler(void *fdp, void *msg)

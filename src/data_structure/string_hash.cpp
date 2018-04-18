@@ -13,55 +13,79 @@
 #define K_WARN    printf
 #define K_ERROR   printf
 
+pthread_rwlock_t StringHash::m_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
 StringHash::StringHash()
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     string_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 StringHash::~StringHash()
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     string_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 void StringHash::print(void)
 {
+    pthread_rwlock_rdlock(&m_rwlock);
     K_INFO("Hash Table:\n");
     for(it = string_map.begin(); it != string_map.end(); it++)
         K_INFO("%s => %p\n", it->first.c_str(), it->second);
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 int StringHash::size(void)
 {
-    return string_map.size();
+    int size = 0;
+    pthread_rwlock_rdlock(&m_rwlock);
+    size = string_map.size();
+    pthread_rwlock_unlock(&m_rwlock);
+    return size;
 }
 
 void StringHash::clear(void)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     string_map.clear();
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 bool StringHash::empty(void)
 {
-    return string_map.empty();
+    bool empty = false;
+    pthread_rwlock_rdlock(&m_rwlock);
+    empty = string_map.empty();
+    pthread_rwlock_unlock(&m_rwlock);
+    return empty;
 }
 
 void *StringHash::find(const string &key)
 {
+    void *result = NULL;
+    pthread_rwlock_rdlock(&m_rwlock);
     it = string_map.find(key);
-    return (it == string_map.end()) ? NULL : it->second;
+    result = (it == string_map.end()) ? NULL : it->second;
+    pthread_rwlock_unlock(&m_rwlock);
+    return result;
 }
 
 int StringHash::remove(const string &key)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     it = string_map.find(key);
-    if(it == string_map.end())
-        return 0;
-    string_map.erase(it);
+    if(it != string_map.end())
+        string_map.erase(it);
+    pthread_rwlock_unlock(&m_rwlock);
     return 0;
 }
 
 void StringHash::remove(void *value)
 {
+    pthread_rwlock_wrlock(&m_rwlock);
     for(it = string_map.begin(); it != string_map.end(); it++)
     {
         if(value == it->second)
@@ -70,25 +94,33 @@ void StringHash::remove(void *value)
             break;
         }
     }
+    pthread_rwlock_unlock(&m_rwlock);
 }
 
 int StringHash::insert(const string &key, void *value)
 {
+    int result = 0;
+    pthread_rwlock_wrlock(&m_rwlock);
     it = string_map.find(key);
     if(it != string_map.end()) // exsit
-        return 1;
-
-    string_map[key] = value;
-//    string_map.insert(std::pair<string, void *>(key, value));
-    return 0;
+        result = 1;
+    else
+        string_map[key] = value;
+//        string_map.insert(std::pair<string, void *>(key, value));
+    pthread_rwlock_unlock(&m_rwlock);
+    return result;
 }
 
 int StringHash::change(const string &key, void *value)
 {
+    int result = 0;
+    pthread_rwlock_wrlock(&m_rwlock);
     it = string_map.find(key);
     if(it == string_map.end()) // not exsit
-        return -1;
-    string_map[key] = value;
-    return 0;
+        result = -1;
+    else
+        string_map[key] = value;
+    pthread_rwlock_unlock(&m_rwlock);
+    return result;
 }
 
