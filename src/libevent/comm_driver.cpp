@@ -247,8 +247,8 @@ STATIC void comm_listener_handler(struct evconnlistener *listener, evutil_socket
         return ;
     }
 
-    K_INFO("COMM : New connecting from %s:%d, %p\n",inet_ntoa(((sockaddr_in *)sa)->sin_addr),
-           ntohs(((sockaddr_in *)sa)->sin_port), bev);
+    //K_INFO("COMM : New connecting from %s:%d, %p\n",inet_ntoa(((sockaddr_in *)sa)->sin_addr),
+    //       ntohs(((sockaddr_in *)sa)->sin_port), bev);
     
     // set readcb, writecb and errcb
     #ifdef USING_WRITE_HANDLER
