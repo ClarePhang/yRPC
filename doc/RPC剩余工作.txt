@@ -1,0 +1,70 @@
+RPC(Remote Procedure Call Protocol)
+
+1.libevent
+  是否存在一个进程监听多个端口的情况！！！  
+
+fsync()对socket无效：用什么函数有效！
+strace工具的使用
+
+待续的工作：
+1.一套完整的错误返回机制
+2.可以在链接的地方做手脚，让其不可连接网络，但是外网可以链接设备；
+3.心跳报文的实现；
+4.周期检查功能实现；
+5.高低优先级任务的处理；
+6.实现接收数据的合包处理：string；
+7.添加日志库的使用；
+8.增加模块的识别能力；
+9.增加配置选项实现链接次数限制，默认为3次；
+10.当接收到退出消息时，能够及时响应；
+11.实现超时等待使用systick而不是系统时间；
+12.是直接调用还是线程调用，增加参数说明，默认线程调用；
+
+RPC的限制：
+1.进程名、模块名、函数名最大长为256字节；
+2.注册回掉/观察者模式不会触发多次的连接请求，且链接超时为注册等待时间；
+3.进程配置项中，不允许出现Global的进程名字；
+4.一个模块不要在多模块中出现，ERPC不保证其优先顺序；
+5.同时连接的仲裁机制的实现：以进程名判断，名字小的连接优先；
+6.一个配置文件；2个环境变量；3个框架接口；4个远程调用接口；5个观察者模式接口；
+
+
+#include <event2/buffer.h>
+#include <event2/util.h>
+#include <stdlib.h>
+#include <stdlib.h>
+
+int get_record(struct evbuffer *buf, size_t *size_out, char **record_out)
+{
+    /* Let's assume that we're speaking some protocol where records
+       contain a 4-byte size field in network order, followed by that
+       number of bytes.  We will return 1 and set the 'out' fields if we
+       have a whole record, return 0 if the record isn't here yet, and
+       -1 on error.  */
+    size_t buffer_len = evbuffer_get_length(buf);
+    ev_uint32_t record_len;
+    char *record;
+
+    if (buffer_len < 4)
+       return 0; /* The size field hasn't arrived. */
+
+   /* We use evbuffer_copyout here so that the size field will stay on
+       the buffer for now. */
+    evbuffer_copyout(buf, &record_len, 4);
+    /* Convert len_buf into host order. */
+    record_len = ntohl(record_len);
+    if (buffer_len < record_len + 4)
+        return 0; /* The record hasn't arrived */
+
+    /* Okay, _now_ we can remove the record. */
+    record = malloc(record_len);
+    if (record == NULL)
+        return -1;
+
+    evbuffer_drain(buf, 4);
+    evbuffer_remove(buf, record, record_len);
+
+    *record_out = record;
+    *size_out = record_len;
+    return 1;
+}
