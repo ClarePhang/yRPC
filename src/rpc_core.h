@@ -33,7 +33,6 @@ public:
     static RPCCore *getInstance(void);
     virtual int start(void);
     virtual int runUntilAskedToQuit(bool state);
-    
     virtual int registerService(const string &service, ServiceHandler func);
     virtual int unregisterService(const string &service);
     virtual int setResponse(void *msg, void *response_data, size_t response_len);
@@ -73,6 +72,7 @@ private:
     
 private:
     static bool m_run_state;
+    static bool m_monitor_state;
     static RPCCore *m_rpc_core;
     pthread_t m_core_thread_id;
     static string m_process_name;

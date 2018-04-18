@@ -55,6 +55,7 @@ using namespace std;
 #define UNREGISTEROBSERVERFUNC  "unRegisterObserverHandler"
 
 bool RPCCore::m_run_state;
+bool RPCCore::m_monitor_state;
 RPCCore *RPCCore::m_rpc_core;
 string RPCCore::m_process_name;
 COMMDriver RPCCore::m_comm_base;
@@ -82,6 +83,7 @@ RPCCore::RPCCore()
     m_rpc_core = NULL;
     m_conf_file = NULL;
     m_run_state = false;
+    m_monitor_state = false;
     m_process_name.clear();
     m_threadpool = NULL;
     m_core_thread_id = 0;
@@ -102,6 +104,7 @@ RPCCore::~RPCCore()
     m_rpc_core = NULL;
     m_conf_file = NULL;
     m_run_state = false;
+    m_monitor_state = false;
     m_process_name.clear();
     m_threadpool = NULL;
     m_core_thread_id = 0;
@@ -132,7 +135,7 @@ int RPCCore::start(void)
     
     if(true == m_run_state)
     {
-        K_INFO("RPC : you have run RPC framework before!\n");
+        K_INFO("RPC : %s have run RPC framework before!\n", m_process_name.c_str());
         return 0;
     }
 
@@ -232,10 +235,16 @@ int RPCCore::runUntilAskedToQuit(bool state)
 {
     void *fdp = NULL;
     struct SendListEntry *sender = NULL;
+
+    if(true == m_monitor_state)
+    {
+        K_INFO("RPC : %s have entered the monitor state!\n", m_process_name.c_str());
+        return 0;
+    }
     
     if(false == m_run_state)
     {
-        K_ERROR("RPC : you have't run RPC before!\n");
+        K_ERROR("RPC : %s have't run RPC before!\n", m_process_name.c_str());
         return -2;
     }
 
@@ -249,7 +258,15 @@ int RPCCore::runUntilAskedToQuit(bool state)
         K_ERROR("RPC : register SIGSEGV failed!\n");
 
     if(false == state)
-        K_INFO("You want to stop RPC before business running.\n");
+    {
+        m_monitor_state = false;
+        K_INFO("RPC : %s want to stop RPC before business running.\n", m_process_name.c_str());
+    }
+    else
+    {
+        m_monitor_state = true;
+        K_INFO("RPC : %s will enter a state of monitoring.\n", m_process_name.c_str());
+    }
     m_run_state = state;
     while(m_run_state)
     {
@@ -324,14 +341,14 @@ int RPCCore::setResponse(void *msg, void *response_data, size_t response_len)
 
     if(false == m_run_state)
     {
-        K_ERROR("RPC : you must ensure RPC is running before you use!\n");
+        K_ERROR("RPC : %s must ensure RPC is running before use!\n", m_process_name.c_str());
         return -2;
     }
 
     if(true == request->checkOnewayStatus())
     {
         K_ERROR("RPC : %s() request is a one way  calling.\n", request->getFunction().c_str());
-        K_ERROR("RPC : you can't set response data for this message.\n");
+        K_ERROR("RPC : %s can't set response data for this message.\n", m_process_name.c_str());
         return -1;
     }
 
@@ -392,7 +409,7 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
     if(false == m_run_state)
     {
         usleep(200*1000);
-        K_ERROR("RPC : you must ensure RPC is running before you use!\n");
+        K_ERROR("RPC : %s must ensure RPC is running before use!\n", m_process_name.c_str());
         return -2;
     }
 
@@ -442,7 +459,7 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
     
     if((NULL == recv) || (NULL == rlen) || (0 == *rlen))
     {
-        K_WARN("RPC : you will not recv data from %s() calling.\n", func.c_str());
+        K_WARN("RPC : %s will not recv data from %s() calling.\n", m_process_name.c_str(), func.c_str());
         request->changeOnewayStatus(true);
     }
 
@@ -583,7 +600,7 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     
     if(false == m_run_state)
     {
-        K_ERROR("RPC : you must ensure RPC is running before you use!\n");
+        K_ERROR("RPC : %s must ensure RPC is running before use!\n", m_process_name.c_str());
         return -2;
     }
 
@@ -660,7 +677,7 @@ int RPCCore::registerObserver(const string &module, const string &observer, Obse
 
     if(false == m_run_state)
     {
-        K_ERROR("RPC : you must ensure RPC is running before you use!\n");
+        K_ERROR("RPC : %s must ensure RPC is running before use!\n", m_process_name.c_str());
         return -2;
     }
 
@@ -763,7 +780,7 @@ int RPCCore::unregisterObserver(const string &module, const string &observer, st
     
     if(false == m_run_state)
     {
-        K_ERROR("RPC : you must ensure RPC is running before you use!\n");
+        K_ERROR("RPC : %s must ensure RPC is running before use!\n", m_process_name.c_str());
         return -2;
     }
 

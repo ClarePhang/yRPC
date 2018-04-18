@@ -59,6 +59,7 @@ public:
     /*!
      * This is the last function you will call in the main() program.\n
      * This is a while loop for monitoring program exception.
+     * If you want to quit ERPC framework, just make state equal to false.
      * @param[in] state  If start() calling OK, and you business threads runing OK, pass true;\n
      *      Any other situation, please pass false to stop ERPC framework.
      * @return 
