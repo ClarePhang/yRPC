@@ -27,17 +27,14 @@ int main(int argc, char *argv[])
         printf("malloc Media Module pointer failed!\n");
         return -1;
     }
-
-    // 3. init RPC
-    server->initRPC(argv[0], "../conf/rpc.conf");
     
-    // 4.start RPC framework
+    // 3.start RPC framework
     server->start();
     
-    // 5.start module business
+    // 4.start module business
     media->startModule();
     
-    // 6.go into monitor
+    // 5.go into monitor
     server->runUntilAskedToQuit(true);
 
     return 0;

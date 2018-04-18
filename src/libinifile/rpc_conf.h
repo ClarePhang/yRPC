@@ -45,7 +45,7 @@ public:
     
 public:
     virtual int setConfigProfile(const string &path) = 0;
-    virtual int selfCheckValidity(void) = 0;
+    virtual int selfCheckValidity(string check_value) = 0;
     virtual int getProcessFromModule(string &process, const string &module) = 0;
     virtual int getProcessConfig(const string &process, ProcessConfig &process_config) = 0;
     virtual int getProcessNetConfig(const string &process, ProcessConfig &process_config) = 0;

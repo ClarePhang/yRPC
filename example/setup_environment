@@ -1,1 +1,2 @@
 export LD_LIBRARY_PATH=../src/
+export RPC_CONFIG_PATH=/work/work/Studied_Module/09.yRPC/conf/rpc.conf

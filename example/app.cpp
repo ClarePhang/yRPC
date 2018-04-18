@@ -26,9 +26,7 @@ void *business_thread(void *arg)
     struct timeval start, end;
     
     sleep(1);
-    printf("11111111111\n");
     media->mediaControl(playMedia, 9);
-    printf("22222222222\n");
     result = media->registerStateHandler(stateChange);
     if(result == 0)
         printf("register state change handler OK.\n");
@@ -80,14 +78,13 @@ int main(int argc, char *argv[])
         return -1;
     }
     
-    // 3. init RPC
-    server->initRPC(argv[0], "../conf/rpc.conf");
-
-    // 4.start RPC framework
+    // 3.start RPC framework
     server->start();
 
-    // 5.start app business
+    // 4.start app business
     result = pthread_create(&business_id, NULL, business_thread, NULL);
+
+    // 5.run RPC framework
     if(result != 0)
         server->runUntilAskedToQuit(false);
     else

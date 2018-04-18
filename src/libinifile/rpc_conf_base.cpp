@@ -22,9 +22,6 @@
 //#define USING_DEBUG
 #undef USING_DEBUG
 
-#define RPCCONFIG_PATH_ENV  "RPCCONFIG_PATH"
-#define RPC_SELF_CHECK_ENV  "RPCCONFIG_CHECK"
-
 #define MODULESECTION           "ModuleConfiguration"
 #define GLOBALSECTION           "GlobalConfiguration"
 #define DEFAULTFIXTHREADSKEY    "DefaultFixThreads"
@@ -51,7 +48,6 @@
 
 RPCConfigBase::RPCConfigBase()
 {
-    m_env_file.clear();
     m_conf_file.clear();
     m_rpc_version.clear();
     m_process_last.clear();
@@ -62,7 +58,6 @@ RPCConfigBase::RPCConfigBase()
 
 RPCConfigBase::~RPCConfigBase()
 {
-    m_env_file.clear();
     m_conf_file.clear();
     m_rpc_version.clear();
     m_process_last.clear();
@@ -237,42 +232,28 @@ void RPCConfigBase::printProcessConfig(const string &process)
 int RPCConfigBase::setConfigProfile(const string &path)
 {
     int ret = -1;
-    string tmp_path;
-    char *self_check_env = NULL;
 
-    tmp_path.clear();
     if(path.empty())
     {
-        ret = getConfigProfileFromEnv();
-        if(ret < 0)
-        {
-            m_load_state = CONFIG_LOAD_FAILED;
-            K_ERROR("RPCConfig : config-file path can not be NULL!\n");
-            return -1;
-        }
-        tmp_path = m_env_file;
-        K_WARN("RPCConfig : config-file path is NULL, use environment config.\n");
-    }
-    else
-    {
-        tmp_path = path;
+        K_ERROR("RPCConfig : config-file path can not be NULL!\n");
+        return -1;
     }
     
     if(CONFIG_LOAD_SUCCESS == m_load_state)
     {
         K_WARN("RPCConfig : you have loaded %s configuration file before.\n", m_conf_file.c_str());
-        if(tmp_path == m_conf_file)
+        if(path == m_conf_file)
             return 0;
-        K_WARN("RPCConfig : now will load %s file.\n", tmp_path.c_str());
+        K_WARN("RPCConfig : now will load %s file.\n", path.c_str());
     }
-    else if((CONFIG_LOAD_FAILED == m_load_state) && (tmp_path == m_conf_file))
+    else if((CONFIG_LOAD_FAILED == m_load_state) && (path == m_conf_file))
     {
-        K_WARN("RPCConfig : loaded failed, you have loaded %s file before.\n", tmp_path.c_str());
+        K_WARN("RPCConfig : loaded failed, you have loaded %s file before.\n", path.c_str());
         return -1;
     }
     
     m_conf_file.clear();
-    m_conf_file = tmp_path;
+    m_conf_file = path;
     
     m_check_state = CONFIG_CHECK_INIT;
     ret = m_inifile.load(m_conf_file);
@@ -284,26 +265,19 @@ int RPCConfigBase::setConfigProfile(const string &path)
     }
 
     m_load_state = CONFIG_LOAD_SUCCESS;
-    K_INFO("RPCConfig : load %s config-file OK.\n", m_conf_file.c_str());
 
-    self_check_env = getenv(RPC_SELF_CHECK_ENV);
-    if((self_check_env != NULL) && ((0 == strncmp(self_check_env, "true", 4)) || (0 == strncmp(self_check_env, "TRUE", 4))))
-    {
-        ret = this->selfCheckValidity();
-        if(ret < 0)
-        {
-            return -1;
-        }
-    }
-    
     return 0;
 }
 
-int RPCConfigBase::selfCheckValidity(void)
+int RPCConfigBase::selfCheckValidity(string check_value)
 {
     IniFile::iterator it;
     IniSection::iterator it_c;
     IniSection *section_ptr = NULL;
+    IniFile::toLowerCase(check_value);
+
+    if(string::npos == check_value.find("true"))
+        return 0;
     
     if(CONFIG_LOAD_SUCCESS != m_load_state)
     {
@@ -402,7 +376,7 @@ int RPCConfigBase::selfCheckValidity(void)
     }
     
     m_check_state = CONFIG_CHECK_SUCCESS;
-    K_INFO("RPCConfig : self-check PASS ^_^\n");
+    K_INFO("RPCConfig : self-check PASS. Congratulations ^_^\n");
     return 0;
 
 CHECK_FAILED:
@@ -640,24 +614,6 @@ int RPCConfigBase::getDefaultConfiguration(DefaultGlobalConfig &default_config)
     default_config.default_interactive_timeout = m_default_config.default_interactive_timeout;
     default_config.default_timeout_en = m_default_config.default_timeout_en;
     default_config.default_cycle_check_en = m_default_config.default_cycle_check_en;
-    
-    return 0;
-}
-
-int RPCConfigBase::getConfigProfileFromEnv(void)
-{
-    char *config_profile_env = NULL;
-
-    config_profile_env = getenv(RPCCONFIG_PATH_ENV);
-    if(NULL == config_profile_env)
-    {
-        K_ERROR("RPCConfig : Environment %s has not set in the system!\n", RPCCONFIG_PATH_ENV);
-        return -1;
-    }
-
-    m_env_file.clear();
-    m_env_file.append(config_profile_env);
-    K_INFO("RPCConfig : RPC environment config file is %s.\n", m_conf_file.c_str());
     
     return 0;
 }

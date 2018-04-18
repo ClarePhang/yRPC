@@ -46,13 +46,15 @@ using namespace std;
 #define TIMEOUTDEFAULTSEC       3
 #define TIMEOUTDEFAULTUSEC      (100*1000)
 
+#define RPCCONFIG_PATH_ENV  "RPC_CONFIG_PATH"
+#define RPC_SELF_CHECK_ENV  "RPC_CONFIG_CHECK"
+
 #define OBSERVERAPPENDSTRING    "ObserverHandler"
 #define INVOKEOBSERVERFUNC      "invokeObserverHandler"
 #define REGISTEROBSERVERFUNC    "registerObserverHandler"
 #define UNREGISTEROBSERVERFUNC  "unRegisterObserverHandler"
 
 bool RPCCore::m_run_state;
-bool RPCCore::m_conf_state;
 RPCCore *RPCCore::m_rpc_core;
 string RPCCore::m_process_name;
 COMMDriver RPCCore::m_comm_base;
@@ -80,7 +82,6 @@ RPCCore::RPCCore()
     m_rpc_core = NULL;
     m_conf_file = NULL;
     m_run_state = false;
-    m_conf_state = false;
     m_process_name.clear();
     m_threadpool = NULL;
     m_core_thread_id = 0;
@@ -101,7 +102,6 @@ RPCCore::~RPCCore()
     m_rpc_core = NULL;
     m_conf_file = NULL;
     m_run_state = false;
-    m_conf_state = false;
     m_process_name.clear();
     m_threadpool = NULL;
     m_core_thread_id = 0;
@@ -123,30 +123,169 @@ RPCCore *RPCCore::getInstance(void)
     return m_rpc_core;
 }
 
-int RPCCore::initRPC(const string &process_name, const string &conf_path)
+int RPCCore::start(void)
 {
     int result = -1;
+    int fix, dyn, queue;
+    struct sockaddr_un u_addr;
+    struct sockaddr_in s_addr;
+    
+    if(true == m_run_state)
+    {
+        K_INFO("RPC : you have run RPC framework before!\n");
+        return 0;
+    }
 
-    result = getExecutableName(m_process_name);
+    result = initRPC();
     if(result < 0)
-    {
-        K_ERROR("RPC : get process name failed!\n");
         return -1;
-    }
-
-    m_conf_file = RPCConfig::getInstance();
-    if(NULL == m_conf_file)
-    {
-        K_ERROR("RPC : new RPC configuration memory failed!\n");
-        return -1;
-    }
-
-    result = m_conf_file->setConfigProfile(conf_path);
+    
+    // 1.find local socket config
+    result = m_conf_file->getProcessConfig(m_process_name, m_process_conf);
     if(0 != result)
+    {
+        K_ERROR("RPC : could not find %s process addr configuration!\n", m_process_name.c_str());
         return -1;
+    }
 
-    m_conf_state = true;
+    // 2.set communicate timeout
+    if(0 == m_process_conf.connect_timeout)
+    {
+        m_conn_tv.tv_sec = TIMEOUTDEFAULTSEC;
+        m_conn_tv.tv_usec = TIMEOUTDEFAULTUSEC;
+    }
+    else
+    {
+        m_conn_tv.tv_sec = m_process_conf.connect_timeout / 1000;
+        m_conn_tv.tv_usec = m_process_conf.connect_timeout % 1000;
+    }
+    if(0 == m_process_conf.interactive_timeout)
+    {
+        m_comm_tv.tv_sec = TIMEOUTDEFAULTSEC;
+        m_comm_tv.tv_usec = TIMEOUTDEFAULTUSEC;
+    }
+    else
+    {
+        m_comm_tv.tv_sec = m_process_conf.interactive_timeout / 1000;
+        m_comm_tv.tv_usec = m_process_conf.interactive_timeout % 1000;
+    }
+    m_comm_base.setTimeout(m_comm_tv);
+
+    // 3.create socket base thread
+    if(0 == m_process_conf.listen_port) // use localsocket
+    {
+        unlink(m_process_conf.ip_address.c_str());
+        SocketBaseOpt::initSockaddr(u_addr, m_process_conf.ip_address.c_str());
+        result = m_comm_base.create(commEventHandler, (struct sockaddr *)&u_addr, sizeof(u_addr));
+    }
+    else
+    {
+        SocketBaseOpt::initSockaddr(s_addr, m_process_conf.ip_address.c_str(), m_process_conf.listen_port);
+        result = m_comm_base.create(commEventHandler, (struct sockaddr *)&s_addr, sizeof(s_addr));
+    }
+    if(0 != result)
+        return result;
+
+    // 4.create threadpool
+    if(0 == m_process_conf.fix_threads)
+        fix = FIXTHREADDEFAULTNUM;
+    else
+        fix = m_process_conf.fix_threads;
+    if(0 == m_process_conf.dyn_threads)
+        dyn = DYNTHREADDEFAULTNUM;
+    else
+        dyn = m_process_conf.dyn_threads;
+    if(0 == m_process_conf.max_workqueue)
+        queue = MAXQUEUEDEFAULTNUM;
+    else
+        queue = m_process_conf.max_workqueue;
+
+    m_threadpool = ThreadPool::getInstance();
+    if(NULL == m_threadpool)
+    {
+        K_ERROR("RPC : new threadpool failed!\n");
+        m_comm_base.destroy();
+        return -1;
+    }
+    result = m_threadpool->create(fix, dyn, queue);
+    if(0 != result)
+    {
+        K_ERROR("RPC : create threadpool failed!\n");
+        m_comm_base.destroy();
+        return -1;
+    }
+
+    m_run_state = true;
+    if(pthread_create(&m_core_thread_id, NULL, RPCCoreThread, NULL) != 0)
+    {
+        m_run_state = false;
+        m_comm_base.destroy();
+        m_threadpool->destroy();
+        K_ERROR("RPC : %s: pthread_create failed, errno:%d,error:%s.\n", __FUNCTION__, errno, strerror(errno));
+        return -1;
+    }
+    
     return 0;
+}
+
+int RPCCore::runUntilAskedToQuit(bool state)
+{
+    void *fdp = NULL;
+    struct SendListEntry *sender = NULL;
+    
+    if(false == m_run_state)
+    {
+        K_ERROR("RPC : you have't run RPC before!\n");
+        return -2;
+    }
+
+    if(signal(SIGINT,signalHandler) == SIG_ERR)
+        K_ERROR("RPC : register SIGINT failed!\n");
+    if(signal(SIGTERM,signalHandler) == SIG_ERR)
+        K_ERROR("RPC : register SIGTERM failed!\n");
+    if(signal(SIGALRM,signalHandler) == SIG_ERR)
+        K_ERROR("RPC : register SIGALRM failed!\n");
+    if(signal(SIGSEGV,signalHandler) == SIG_ERR)
+        K_ERROR("RPC : register SIGSEGV failed!\n");
+
+    if(false == state)
+        K_INFO("You want to stop RPC before business running.\n");
+    m_run_state = state;
+    while(m_run_state)
+    {
+        sleep(1);
+    }
+
+    // exit send thread
+    pthread_cond_signal(&m_send_cond);
+    pthread_join(m_core_thread_id, NULL);
+
+    // release all message
+    while(NULL != LIST_FIRST(&m_send_head))
+    {
+        sender = LIST_FIRST(&m_send_head);
+        LIST_REMOVE(sender, next);
+        releaseRPCMessage((void *)sender->message);
+        free(sender);
+        sender = NULL;
+    }
+
+    // disconnect all socket
+    for(int i = 0; i < m_process_connect_list.size();i++)
+    {
+        if(0 == i)
+            fdp = m_process_connect_list.begin();
+        else
+            fdp = m_process_connect_list.next();
+        m_comm_base.disconnect(fdp);
+    }
+    m_process_connect_list.clear();
+    m_threadpool->destroy();
+    m_comm_base.destroy();
+    
+    K_INFO("RPC : RPC framework will exit.\n");
+    
+    exit(0);
 }
 
 int RPCCore::registerService(const string &service, ServiceHandler func)
@@ -407,166 +546,6 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
 
     releaseRPCMessage((void *)response);
     return result;
-}
-
-int RPCCore::start(void)
-{
-    int result = -1;
-    int fix, dyn, queue;
-    struct sockaddr_un u_addr;
-    struct sockaddr_in s_addr;
-    
-    if(false == m_conf_state)
-    {
-        K_ERROR("RPC : you must set RPC-Configuration before start run!\n");
-        return -2;
-    }
-
-    // 1.find local socket config
-    result = m_conf_file->getProcessConfig(m_process_name, m_process_conf);
-    if(0 != result)
-    {
-        K_ERROR("RPC : could not find %s process addr configuration!\n", m_process_name.c_str());
-        return -1;
-    }
-
-    // 2.set communicate timeout
-    if(0 == m_process_conf.connect_timeout)
-    {
-        m_conn_tv.tv_sec = TIMEOUTDEFAULTSEC;
-        m_conn_tv.tv_usec = TIMEOUTDEFAULTUSEC;
-    }
-    else
-    {
-        m_conn_tv.tv_sec = m_process_conf.connect_timeout / 1000;
-        m_conn_tv.tv_usec = m_process_conf.connect_timeout % 1000;
-    }
-    if(0 == m_process_conf.interactive_timeout)
-    {
-        m_comm_tv.tv_sec = TIMEOUTDEFAULTSEC;
-        m_comm_tv.tv_usec = TIMEOUTDEFAULTUSEC;
-    }
-    else
-    {
-        m_comm_tv.tv_sec = m_process_conf.interactive_timeout / 1000;
-        m_comm_tv.tv_usec = m_process_conf.interactive_timeout % 1000;
-    }
-    m_comm_base.setTimeout(m_comm_tv);
-
-    // 3.create socket base thread
-    if(0 == m_process_conf.listen_port) // use localsocket
-    {
-        unlink(m_process_conf.ip_address.c_str());
-        SocketBaseOpt::initSockaddr(u_addr, m_process_conf.ip_address.c_str());
-        result = m_comm_base.create(commEventHandler, (struct sockaddr *)&u_addr, sizeof(u_addr));
-    }
-    else
-    {
-        SocketBaseOpt::initSockaddr(s_addr, m_process_conf.ip_address.c_str(), m_process_conf.listen_port);
-        result = m_comm_base.create(commEventHandler, (struct sockaddr *)&s_addr, sizeof(s_addr));
-    }
-    if(0 != result)
-        return result;
-
-    // 4.create threadpool
-    if(0 == m_process_conf.fix_threads)
-        fix = FIXTHREADDEFAULTNUM;
-    else
-        fix = m_process_conf.fix_threads;
-    if(0 == m_process_conf.dyn_threads)
-        dyn = DYNTHREADDEFAULTNUM;
-    else
-        dyn = m_process_conf.dyn_threads;
-    if(0 == m_process_conf.max_workqueue)
-        queue = MAXQUEUEDEFAULTNUM;
-    else
-        queue = m_process_conf.max_workqueue;
-
-    m_threadpool = ThreadPool::getInstance();
-    if(NULL == m_threadpool)
-    {
-        K_ERROR("RPC : new threadpool failed!\n");
-        m_comm_base.destroy();
-        return -1;
-    }
-    result = m_threadpool->create(fix, dyn, queue);
-    if(0 != result)
-    {
-        K_ERROR("RPC : create threadpool failed!\n");
-        m_comm_base.destroy();
-        return -1;
-    }
-
-    m_run_state = true;
-    if(pthread_create(&m_core_thread_id, NULL, RPCCoreThread, NULL) != 0)
-    {
-        m_run_state = false;
-        m_comm_base.destroy();
-        K_ERROR("RPC : %s: pthread_create failed, errno:%d,error:%s.\n", __FUNCTION__, errno, strerror(errno));
-        return -1;
-    }
-    
-    return 0;
-}
-
-int RPCCore::runUntilAskedToQuit(bool state)
-{
-    void *fdp = NULL;
-    struct SendListEntry *sender = NULL;
-    
-    if(false == m_run_state)
-    {
-        K_ERROR("RPC : you have't run RPC before!\n");
-        return -2;
-    }
-
-    if(signal(SIGINT,signalHandler) == SIG_ERR)
-        K_ERROR("RPC : register SIGINT failed!\n");
-    if(signal(SIGTERM,signalHandler) == SIG_ERR)
-        K_ERROR("RPC : register SIGTERM failed!\n");
-    if(signal(SIGALRM,signalHandler) == SIG_ERR)
-        K_ERROR("RPC : register SIGALRM failed!\n");
-    if(signal(SIGSEGV,signalHandler) == SIG_ERR)
-        K_ERROR("RPC : register SIGSEGV failed!\n");
-
-    if(false == state)
-        K_INFO("You want to stop RPC before business running.\n");
-    m_run_state = state;
-    while(m_run_state)
-    {
-        sleep(1);
-    }
-
-    // exit send thread
-    pthread_cond_signal(&m_send_cond);
-    pthread_join(m_core_thread_id, NULL);
-
-    // release all message
-    while(NULL != LIST_FIRST(&m_send_head))
-    {
-        sender = LIST_FIRST(&m_send_head);
-        LIST_REMOVE(sender, next);
-        releaseRPCMessage((void *)sender->message);
-        free(sender);
-        sender = NULL;
-    }
-
-    // disconnect all socket
-    for(int i = 0; i < m_process_connect_list.size();i++)
-    {
-        if(0 == i)
-            fdp = m_process_connect_list.begin();
-        else
-            fdp = m_process_connect_list.next();
-        m_comm_base.disconnect(fdp);
-    }
-    m_process_connect_list.clear();
-    m_threadpool->destroy();
-    m_comm_base.destroy();
-    
-    K_INFO("RPC : RPC framework will exit.\n");
-    
-    exit(0);
 }
 
 int RPCCore::createObserver(const string &observer)
@@ -913,31 +892,6 @@ void RPCCore::callBusinessHandler(void *msg)
         handler(msg, data, len);
 }
 
-int RPCCore::getExecutableName(string &process_name)
-{
-    char *path_end = NULL;
-    char absolute_path[1024];
-
-    memset(absolute_path, '\0', 1024);
-    if(readlink("/proc/self/exe", absolute_path, 1024) <= 0)
-    {
-        K_ERROR("RPC : get executable process name failed!\n");
-        return -1;
-    }
-
-    path_end = strrchr(absolute_path, '/');
-    if(NULL == path_end)
-    {
-        K_ERROR("RPC : analysis executable process name failed!\n");
-        return -1;
-    }
-    ++path_end;
-    process_name.clear();
-    process_name = string(path_end);
-
-    return 0;
-}
-
 int RPCCore::registerObserverHandler(void *fdp, void *msg)
 {
     int result = -1;
@@ -1056,6 +1010,201 @@ int RPCCore::commEventHandler(unsigned int type, void *fdp, void *data, size_t l
         default:
             break;
     }
+
+    return 0;
+}
+
+int RPCCore::initRPC(void)
+{
+    int result = -1;
+    char *self_check_env = NULL;
+    char *config_profile_env = NULL;
+    
+    result = getExecutableName(m_process_name);
+    if(result < 0)
+    {
+        K_ERROR("RPC : get process name failed!\n");
+        return -1;
+    }
+
+    config_profile_env = getenv(RPCCONFIG_PATH_ENV);
+    if(NULL == config_profile_env)
+    {
+        K_ERROR("RPC : Environment %s has not set in the system!\n", RPCCONFIG_PATH_ENV);
+        return -1;
+    }
+    K_INFO("RPC : configuration file is %s.\n", config_profile_env);
+    
+    m_conf_file = RPCConfig::getInstance();
+    if(NULL == m_conf_file)
+    {
+        K_ERROR("RPC : new RPC configuration memory failed!\n");
+        return -1;
+    }
+    
+    result = m_conf_file->setConfigProfile(string(config_profile_env));
+    if(0 != result)
+        return -1;
+
+    self_check_env = getenv(RPC_SELF_CHECK_ENV);
+    if(self_check_env != NULL)
+    {
+        result = m_conf_file->selfCheckValidity(string(self_check_env));
+        if(result < 0)
+            return -1;
+    }
+
+    return 0;
+}
+
+unsigned int RPCCore::getFrameID(void)
+{
+    unsigned int temp_id;
+    pthread_mutex_lock(&m_frame_mutex);
+    temp_id = m_frame_id++;
+    pthread_mutex_unlock(&m_frame_mutex);
+    return temp_id;
+}
+
+int RPCCore::wakeupOneThread(void *msg)
+{
+    Message *message = (Message *)msg;
+    
+    RPCProxy *proxy_impl = (RPCProxy *)m_proxy_hash.find(message->getMessageID());
+    if(NULL == proxy_impl)
+        return -1;
+    
+    proxy_impl->lock();
+    proxy_impl->setResponseMsg(message);
+    proxy_impl->wakeup();
+    proxy_impl->unlock();
+    
+    return 0;
+}
+
+void *RPCCore::RPCCoreThread(void *arg)
+{
+    int result = -1;
+    size_t send_len = 0;
+    void *send_data = NULL;
+    void *connect_fd = NULL;
+    Message *message = NULL;
+    void *connect_tmp_fd = NULL;
+    volatile int connect_count = 0;
+    struct SendListEntry *sender = NULL;
+
+    K_INFO("RPC : send thread running, id:%lu\n",pthread_self());
+
+    while(m_run_state)
+    {
+        pthread_mutex_lock(&m_send_mutex);
+        while((LIST_FIRST(&m_send_head) == NULL) && m_run_state)
+        {
+            pthread_cond_wait(&m_send_cond, &m_send_mutex);
+        }
+
+        if(!m_run_state)
+        {
+            pthread_mutex_unlock(&m_send_mutex);
+            break;
+        }
+        assert(LIST_FIRST(&m_send_head) != NULL);
+        sender = LIST_FIRST(&m_send_head);
+        LIST_REMOVE(sender, next);
+        assert(sender->message != NULL);
+        pthread_mutex_unlock(&m_send_mutex);
+
+        message = (Message *)sender->message;
+        if((MT_OBSER_PK == message->getMessageType()) && (string(INVOKEOBSERVERFUNC) == message->getFunction()))
+        {
+            OBSERVER_IT fd_it;
+            OBSERVER_LIST_PTR list_ptr;
+            list_ptr = m_observer_connect_hash.find(message->getRecver());
+            if((NULL == list_ptr) || list_ptr->empty())
+                goto FREE_MEMORY;
+        REPEAT_SERIALIZE:
+            result = message->serializeMessage(&send_data, &send_len);
+            if(0 != result)
+                goto REPEAT_SERIALIZE;
+            for(fd_it = list_ptr->begin(); fd_it != list_ptr->end(); fd_it++)
+            {
+                // send message to all observer
+                m_comm_base.send(*fd_it, send_data, send_len);
+            }
+            message->releaseSerializeMessage(send_data);
+            send_data = NULL;
+            goto FREE_MEMORY;
+        }
+        
+    REPEAT_CONNECT:
+        pthread_mutex_lock(&m_link_mutex);
+        connect_fd = m_process_connect_hash.find(message->getRecver());
+        pthread_mutex_unlock(&m_link_mutex);
+        if(NULL == connect_fd)  // connect not exsit
+        {
+            if(CONNECTRETRYDEFAULT == connect_count)
+                goto FREE_MEMORY;
+            result = connectToProcess(message->getRecver(), &connect_tmp_fd);
+            if(0 != result)
+            {
+                connect_count++;
+                goto REPEAT_CONNECT;
+            }
+
+            // when connect OK, we send a link package
+            result = requestLink(connect_tmp_fd, (void *)message);
+            if((1 == result) || (result < 0))
+            {
+                m_comm_base.disconnect(connect_tmp_fd);
+                goto REPEAT_CONNECT;
+            }
+            
+            connect_fd = connect_tmp_fd;
+        }
+        
+REPEAT_SEND: // start to send data
+        result = message->serializeMessage(&send_data, &send_len);
+        if(0 != result)
+            goto REPEAT_SEND;
+        result = m_comm_base.send(connect_fd, send_data, send_len);
+        message->releaseSerializeMessage(send_data);
+        send_data = NULL;
+
+FREE_MEMORY:
+        connect_count = 0;
+        releaseRPCMessage((void *)message);
+        free(sender);
+        sender = NULL;
+    }
+    
+    K_INFO("RPC : send thread exit.\n");
+    
+    pthread_exit(NULL);
+}
+
+void RPCCore::releaseRPCMessage(void *arg)
+{
+    Message *message = (Message *)arg;
+    if(message)
+    {
+        message->releaseBodyData();
+        delete (message);
+    }
+}
+
+int RPCCore::insertSenderNode(void *message)
+{
+    struct SendListEntry *sender = NULL;
+    
+    sender = (struct SendListEntry *)malloc(sizeof(struct SendListEntry));
+    if(NULL == sender)
+        return -1;
+    
+    pthread_mutex_lock(&m_send_mutex);
+    sender->message = message;
+    LIST_INSERT_HEAD(&m_send_head, sender, next);
+    pthread_cond_signal(&m_send_cond);
+    pthread_mutex_unlock(&m_send_mutex);
 
     return 0;
 }
@@ -1225,158 +1374,28 @@ REPEAT_SEND:
     return 0;
 }
 
-int RPCCore::insertSenderNode(void *message)
+int RPCCore::getExecutableName(string &process_name)
 {
-    struct SendListEntry *sender = NULL;
-    
-    sender = (struct SendListEntry *)malloc(sizeof(struct SendListEntry));
-    if(NULL == sender)
+    char *path_end = NULL;
+    char absolute_path[1024];
+
+    memset(absolute_path, '\0', 1024);
+    if(readlink("/proc/self/exe", absolute_path, 1024) <= 0)
+    {
+        K_ERROR("RPC : get executable process name failed!\n");
         return -1;
-    
-    pthread_mutex_lock(&m_send_mutex);
-    sender->message = message;
-    LIST_INSERT_HEAD(&m_send_head, sender, next);
-    pthread_cond_signal(&m_send_cond);
-    pthread_mutex_unlock(&m_send_mutex);
-
-    return 0;
-}
-
-int RPCCore::connectToProcess(string process, void **connect_fd)
-{
-    int result = -1;
-    struct sockaddr_un u_addr;
-    struct sockaddr_in s_addr;
-    ProcessConfig process_config;
-    
-    m_conf_file->getProcessNetConfig(process, process_config);
-    if(0 == process_config.listen_port)
-    {
-        SocketBaseOpt::initSockaddr(u_addr, process_config.ip_address.c_str());
-        result = m_comm_base.connect((struct sockaddr *)&u_addr, sizeof(u_addr), m_conn_tv, connect_fd);
     }
-    else
+
+    path_end = strrchr(absolute_path, '/');
+    if(NULL == path_end)
     {
-        SocketBaseOpt::initSockaddr(s_addr, process_config.ip_address.c_str(), process_config.listen_port);
-        result = m_comm_base.connect((struct sockaddr *)&s_addr, sizeof(s_addr), m_conn_tv, connect_fd);
-    }
-    
-    return result;
-}
-
-void *RPCCore::RPCCoreThread(void *arg)
-{
-    int result = -1;
-    size_t send_len = 0;
-    void *send_data = NULL;
-    void *connect_fd = NULL;
-    Message *message = NULL;
-    void *connect_tmp_fd = NULL;
-    volatile int connect_count = 0;
-    struct SendListEntry *sender = NULL;
-
-    K_INFO("RPC : send thread running, id:%lu\n",pthread_self());
-
-    while(m_run_state)
-    {
-        pthread_mutex_lock(&m_send_mutex);
-        while((LIST_FIRST(&m_send_head) == NULL) && m_run_state)
-        {
-            pthread_cond_wait(&m_send_cond, &m_send_mutex);
-        }
-
-        if(!m_run_state)
-        {
-            pthread_mutex_unlock(&m_send_mutex);
-            break;
-        }
-        assert(LIST_FIRST(&m_send_head) != NULL);
-        sender = LIST_FIRST(&m_send_head);
-        LIST_REMOVE(sender, next);
-        assert(sender->message != NULL);
-        pthread_mutex_unlock(&m_send_mutex);
-
-        message = (Message *)sender->message;
-        if((MT_OBSER_PK == message->getMessageType()) && (string(INVOKEOBSERVERFUNC) == message->getFunction()))
-        {
-            OBSERVER_IT fd_it;
-            OBSERVER_LIST_PTR list_ptr;
-            list_ptr = m_observer_connect_hash.find(message->getRecver());
-            if((NULL == list_ptr) || list_ptr->empty())
-                goto FREE_MEMORY;
-        REPEAT_SERIALIZE:
-            result = message->serializeMessage(&send_data, &send_len);
-            if(0 != result)
-                goto REPEAT_SERIALIZE;
-            for(fd_it = list_ptr->begin(); fd_it != list_ptr->end(); fd_it++)
-            {
-                // send message to all observer
-                m_comm_base.send(*fd_it, send_data, send_len);
-            }
-            message->releaseSerializeMessage(send_data);
-            send_data = NULL;
-            goto FREE_MEMORY;
-        }
-        
-    REPEAT_CONNECT:
-        pthread_mutex_lock(&m_link_mutex);
-        connect_fd = m_process_connect_hash.find(message->getRecver());
-        pthread_mutex_unlock(&m_link_mutex);
-        if(NULL == connect_fd)  // connect not exsit
-        {
-            if(CONNECTRETRYDEFAULT == connect_count)
-                goto FREE_MEMORY;
-            result = connectToProcess(message->getRecver(), &connect_tmp_fd);
-            if(0 != result)
-            {
-                connect_count++;
-                goto REPEAT_CONNECT;
-            }
-
-            // when connect OK, we send a link package
-            result = requestLink(connect_tmp_fd, (void *)message);
-            if((1 == result) || (result < 0))
-            {
-                m_comm_base.disconnect(connect_tmp_fd);
-                goto REPEAT_CONNECT;
-            }
-            
-            connect_fd = connect_tmp_fd;
-        }
-        
-REPEAT_SEND: // start to send data
-        result = message->serializeMessage(&send_data, &send_len);
-        if(0 != result)
-            goto REPEAT_SEND;
-        result = m_comm_base.send(connect_fd, send_data, send_len);
-        message->releaseSerializeMessage(send_data);
-        send_data = NULL;
-
-FREE_MEMORY:
-        connect_count = 0;
-        releaseRPCMessage((void *)message);
-        free(sender);
-        sender = NULL;
-    }
-    
-    K_INFO("RPC : send thread exit.\n");
-    
-    pthread_exit(NULL);
-}
-
-int RPCCore::wakeupOneThread(void *msg)
-{
-    Message *message = (Message *)msg;
-    
-    RPCProxy *proxy_impl = (RPCProxy *)m_proxy_hash.find(message->getMessageID());
-    if(NULL == proxy_impl)
+        K_ERROR("RPC : analysis executable process name failed!\n");
         return -1;
-    
-    proxy_impl->lock();
-    proxy_impl->setResponseMsg(message);
-    proxy_impl->wakeup();
-    proxy_impl->unlock();
-    
+    }
+    ++path_end;
+    process_name.clear();
+    process_name = string(path_end);
+
     return 0;
 }
 
@@ -1411,23 +1430,26 @@ int RPCCore::responseErrorCodeACK(void *fdp, void *msg)
     return 0;
 }
 
-unsigned int RPCCore::getFrameID(void)
+int RPCCore::connectToProcess(string process, void **connect_fd)
 {
-    unsigned int temp_id;
-    pthread_mutex_lock(&m_frame_mutex);
-    temp_id = m_frame_id++;
-    pthread_mutex_unlock(&m_frame_mutex);
-    return temp_id;
-}
-
-void RPCCore::releaseRPCMessage(void *arg)
-{
-    Message *message = (Message *)arg;
-    if(message)
+    int result = -1;
+    struct sockaddr_un u_addr;
+    struct sockaddr_in s_addr;
+    ProcessConfig process_config;
+    
+    m_conf_file->getProcessNetConfig(process, process_config);
+    if(0 == process_config.listen_port)
     {
-        message->releaseBodyData();
-        delete (message);
+        SocketBaseOpt::initSockaddr(u_addr, process_config.ip_address.c_str());
+        result = m_comm_base.connect((struct sockaddr *)&u_addr, sizeof(u_addr), m_conn_tv, connect_fd);
     }
+    else
+    {
+        SocketBaseOpt::initSockaddr(s_addr, process_config.ip_address.c_str(), process_config.listen_port);
+        result = m_comm_base.connect((struct sockaddr *)&s_addr, sizeof(s_addr), m_conn_tv, connect_fd);
+    }
+    
+    return result;
 }
 
 int RPCCore::analyseReceiveData(void *fdp, const void *data, size_t len)

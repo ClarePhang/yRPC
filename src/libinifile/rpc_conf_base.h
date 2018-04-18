@@ -34,7 +34,7 @@ public:
 
 public:
     virtual int setConfigProfile(const string &path);
-    virtual int selfCheckValidity(void);
+    virtual int selfCheckValidity(string check_value);
     virtual int getProcessFromModule(string &process, const string &module);
     virtual int getProcessConfig(const string &process, ProcessConfig &process_config);
     virtual int getProcessNetConfig(const string &process, ProcessConfig &process_config);
@@ -54,13 +54,11 @@ public:  // for test and debug
 
 private:
     int getDefaultConfiguration(void);
-    int getConfigProfileFromEnv(void);
     int getTimeUnitConversion(string &unit);
     CONFIG_LOAD_STATE getLoadState(void);
 
 private:
     IniFile m_inifile;
-    string m_env_file;
     string m_conf_file;
     string m_rpc_version;
     string m_process_last;

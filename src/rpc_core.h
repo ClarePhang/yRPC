@@ -31,13 +31,13 @@ class RPCCore : public ERPC
 {
 public:
     static RPCCore *getInstance(void);
-    virtual int initRPC(const string &process_name, const string &conf_path = "");
+    virtual int start(void);
+    virtual int runUntilAskedToQuit(bool state);
+    
     virtual int registerService(const string &service, ServiceHandler func);
     virtual int unregisterService(const string &service);
     virtual int setResponse(void *msg, void *response_data, size_t response_len);
     virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen, struct timeval *tv = NULL);
-    virtual int start(void);
-    virtual int runUntilAskedToQuit(bool state);
 
 public: // observer function
     virtual int createObserver(const string &observer);
@@ -53,29 +53,26 @@ private:
 private:
     static void signalHandler(int signo);
     static void callBusinessHandler(void *msg);
-    static int getExecutableName(string &process_name);
     static int registerObserverHandler(void *fdp, void *msg);
     static int unregisterObserverHandler(void *fdp, void *msg);
     static int commEventHandler(unsigned int type, void *fdp, void *data, size_t len);
 
 private:
+    static int initRPC(void);
+    static unsigned int getFrameID(void);
+    static int wakeupOneThread(void *msg);
+    static void *RPCCoreThread(void *arg);
+    static void releaseRPCMessage(void *arg);
+    static int insertSenderNode(void *message);
     static int requestLink(void *fdp, void *msg);
     static int responseLink(void *fdp, void *msg);
-    static int insertSenderNode(void *message);
-    static int connectToProcess(string process, void **connect_fd);
-    static void *RPCCoreThread(void *arg);
-    
-    static int wakeupOneThread(void *msg);
+    static int getExecutableName(string &process_name);
     static int responseErrorCodeACK(void *fdp, void *msg);
-    
-    static unsigned int getFrameID(void);
-    static void releaseRPCMessage(void *arg);
-    
+    static int connectToProcess(string process, void **connect_fd);
     static int analyseReceiveData(void *fdp, const void *data, size_t len);
     
 private:
     static bool m_run_state;
-    static bool m_conf_state;
     static RPCCore *m_rpc_core;
     pthread_t m_core_thread_id;
     static string m_process_name;

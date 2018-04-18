@@ -46,19 +46,29 @@ public:
      */
     static ERPC *getInstance(void);
     /*!
-     * Initialize ERPC system.\n
-     * @param[in] process_name The name of a service you want to start. Match 
-     *                         with the section name of rpc.conf file.\n
-     *                         ERPC will use process_name section configurations 
-     *                         from rpc.conf to config this process.
-     * @param[in] conf_path  The path of ERPC configuration file. You can not use the param or pass\n
-     *                       "" to initRPC(), ERPC system will refer RPCCONFIG_PATH environment as conf.
+     * Start run ERPC framework.\n
+     * After you have registered all service, and created all observer, you should call start(),\n
+     * then run your own business threads.At last, call runUntilAskedToQuit() switch into abnormal\n
+     * monitoring.
      * @return 
-     * -  0 :init ERPC system OK.
-     * - -1 :init ERPC system failed!
-     * @note You must initialize ERPC system before real using ERPC system.
+     * -  0 : start ERPC framework OK.
+     * - -1 : start ERPC framework failed!
+     * - -2 : ERPC configuration file has not been init before you start ERPC framework.
      */
-    virtual int initRPC(const string &process_name, const string &conf_path = "") = 0;
+    virtual int start(void) = 0;
+    /*!
+     * This is the last function you will call in the main() program.\n
+     * This is a while loop for monitoring program exception.
+     * @param[in] state  If start() calling OK, and you business threads runing OK, pass true;\n
+     *      Any other situation, please pass false to stop ERPC framework.
+     * @return 
+     * -  0 : The ERPC framework has been normal exited.\n
+     *        This will happened by you press "Ctrl + C" or "kill -2" to the process.
+     * - -1 : Mean some exception has been occured.
+     * - -2 : ERPC framework has not been running.
+     * @note  This function will not take the initiative to quit.
+     */
+    virtual int runUntilAskedToQuit(bool state) = 0;
     /*!
      * Register a service function into ERPC system. The service function type must be :\n
      * void (*ServiceHandler)(void *msg, void *data, size_t len);
@@ -118,30 +128,6 @@ public:
      *          timeout configuration.
      */
     virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen, struct timeval *tv = NULL) = 0;
-    /*!
-     * Start run ERPC framework.\n
-     * After you have registered all service, and created all observer, you should call start(),\n
-     * then run your own business threads.At last, call runUntilAskedToQuit() switch into abnormal\n
-     * monitoring.
-     * @return 
-     * -  0 : start ERPC framework OK.
-     * - -1 : start ERPC framework failed!
-     * - -2 : ERPC configuration file has not been init before you start ERPC framework.
-     */
-    virtual int start(void) = 0;
-    /*!
-     * This is the last function you will call in the main() program.\n
-     * This is a while loop for monitoring program exception.
-     * @param[in] state  If start() calling OK, and you business threads runing OK, pass true;\n
-     *      Any other situation, please pass false to stop ERPC framework.
-     * @return 
-     * -  0 : The ERPC framework has been normal exited.\n
-     *        This will happened by you press "Ctrl + C" or "kill -2" to the process.
-     * - -1 : Mean some exception has been occured.
-     * - -2 : ERPC framework has not been running.
-     * @note  This function will not take the initiative to quit.
-     */
-    virtual int runUntilAskedToQuit(bool state) = 0;
 
 public: // observer function
     /*!

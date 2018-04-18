@@ -4,6 +4,7 @@
  * Author: Konishi
  * Email : konishi5202@163.com
  */
+#include <stdio.h>
 #include "rpc_conf.h"
 
 int main(int argc, char *argv[])
@@ -14,11 +15,11 @@ int main(int argc, char *argv[])
     if(argc == 2)
         ret = rpc_conf->setConfigProfile(argv[1]);
     else
-        ret = rpc_conf->setConfigProfile("");
+        printf("\nUsage : %s [config-file absolute path]\n\n", argv[0]);
     if(ret < 0)
         return -1;
 
-    rpc_conf->selfCheckValidity();
+    rpc_conf->selfCheckValidity(string("TRUE"));
 
     return 0;
 }
