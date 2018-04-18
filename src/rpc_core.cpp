@@ -127,15 +127,12 @@ int RPCCore::initRPC(const string &process_name, const string &conf_path)
 {
     int result = -1;
 
-    m_process_name = process_name;
-    if(m_process_name.empty())
+    result = getExecutableName(m_process_name);
+    if(result < 0)
     {
-        K_ERROR("RPC : process name can not be empty!\n");
+        K_ERROR("RPC : get process name failed!\n");
         return -1;
     }
-    
-    if('.' == m_process_name.at(0))
-        m_process_name.erase(0, 2);
 
     m_conf_file = RPCConfig::getInstance();
     if(NULL == m_conf_file)
@@ -916,8 +913,28 @@ void RPCCore::callBusinessHandler(void *msg)
         handler(msg, data, len);
 }
 
-int RPCCore::getExecutableName(const string &process_name)
+int RPCCore::getExecutableName(string &process_name)
 {
+    char *path_end = NULL;
+    char absolute_path[1024];
+
+    memset(absolute_path, '\0', 1024);
+    if(readlink("/proc/self/exe", absolute_path, 1024) <= 0)
+    {
+        K_ERROR("RPC : get executable process name failed!\n");
+        return -1;
+    }
+
+    path_end = strrchr(absolute_path, '/');
+    if(NULL == path_end)
+    {
+        K_ERROR("RPC : analysis executable process name failed!\n");
+        return -1;
+    }
+    ++path_end;
+    process_name.clear();
+    process_name = string(path_end);
+
     return 0;
 }
 
