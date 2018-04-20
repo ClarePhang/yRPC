@@ -222,8 +222,8 @@ int RPCCore::start(void)
     if(pthread_create(&m_core_thread_id, NULL, RPCCoreThread, NULL) != 0)
     {
         m_run_state = false;
-        m_comm_base.destroy();
         m_threadpool->destroy();
+        m_comm_base.destroy();
         K_ERROR("RPC : %s: pthread_create failed, errno:%d,error:%s.\n", __FUNCTION__, errno, strerror(errno));
         return -1;
     }
@@ -594,6 +594,7 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     unsigned int frame;
     Message *request = NULL;
     struct timeval tv = {0, 0};
+    bool local_observer_flag = false;
     string observer_handler(observer);
     ObserverHandler func_handler = NULL;
     string invoke_func(INVOKEOBSERVERFUNC);
@@ -633,18 +634,41 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     func_handler = (ObserverHandler)m_observer_func_hash.find(observer_handler);
     if(NULL != func_handler)
     {
+        local_observer_flag = true;
         request->setHandler((void *)func_handler);
-        m_threadpool->addWork(LowPriority, callBusinessHandler, (void *)request, NULL);
+        m_threadpool->addWork(LowPriority, callBusinessHandler, (void *)request, releaseRPCMessage);
     }
     
     // send data to observer
     if(m_observer_connect_hash.empty(observer))
     {
         K_INFO("RPC : observer %s list is empty.\n", observer.c_str());
-        releaseRPCMessage((void *)request);
+        if(false == local_observer_flag)
+            releaseRPCMessage((void *)request);
         return 0;
     }
 
+    if(true == local_observer_flag)
+    {
+        request = new Message();
+        if(NULL == request)
+        {
+            K_ERROR("RPC : new link message memory failed!\n");
+            return -1;
+        }
+        frame = getFrameID();
+        request->initObserverInvokeMessage(&tv, frame, RPCSUCCESS);
+        request->setBodyHead(m_process_name, observer, observer, invoke_func);
+        result = request->mallocBodyData(data, len);
+        if(0 != result)
+        {
+            K_ERROR("RPC : invoke malloc body data failed!\n");
+            delete (request);
+            return -1;
+        }
+        request->updateBodySize();
+    }
+    
     result = insertSenderNode((void *)request);
     if(0 != result)
     {
