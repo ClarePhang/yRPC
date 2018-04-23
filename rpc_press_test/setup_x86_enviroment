@@ -1,3 +1,3 @@
 export LD_LIBRARY_PATH=../src/
 export RPC_CONFIG_CHECK=TRUE
-export RPC_CONFIG_PATH=/work/work/Studied_Module/09.yRPC/rpc_example/conf/rpc.conf
+export RPC_CONFIG_PATH=/work/work/Studied_Module/09.yRPC/rpc_press_test/conf/rpc.conf
