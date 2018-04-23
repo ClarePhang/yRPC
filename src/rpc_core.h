@@ -30,15 +30,18 @@ LIST_HEAD(SendListHead, SendListEntry);
 class RPCCore : public ERPC
 {
 public:
+    /*======== framework function interface ========*/
     static RPCCore *getInstance(void);
     virtual int start(void);
     virtual int runUntilAskedToQuit(bool state);
+    
+    /*======== remote process call interface ========*/
     virtual int registerService(const string &service, ServiceHandler func);
     virtual int unregisterService(const string &service);
     virtual int setResponse(void *msg, void *response_data, size_t response_len);
     virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen, struct timeval *tv = NULL);
 
-public: // observer function
+    /*======== observer function interface ========*/
     virtual int createObserver(const string &observer);
     virtual int destroyObserver(const string &observer);
     virtual int invokeObserver(const string &observer, void *data, size_t len);
@@ -52,8 +55,7 @@ private:
 private:
     static void signalHandler(int signo);
     static void callBusinessHandler(void *msg);
-    static int registerObserverHandler(void *fdp, void *msg);
-    static int unregisterObserverHandler(void *fdp, void *msg);
+    static int registerObserverHandler(void *fdp, void *msg, bool flag);
     static int commEventHandler(unsigned int type, void *fdp, void *data, size_t len);
 
 private:

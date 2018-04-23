@@ -36,6 +36,7 @@ public:
     virtual ~ERPC();
     
 public:
+    /*======== framework function interface ========*/
     /*!
      * Get ERPC instance pointer. Every process only have one ERPC instance.\n
      * @return ERPC instance pointer:
@@ -70,6 +71,8 @@ public:
      * @note  This function will not take the initiative to quit.
      */
     virtual int runUntilAskedToQuit(bool state) = 0;
+    
+    /*======== remote process call interface ========*/
     /*!
      * Register a service function into ERPC system. The service function type must be :\n
      * void (*ServiceHandler)(void *msg, void *data, size_t len);
@@ -130,7 +133,7 @@ public:
      */
     virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen, struct timeval *tv = NULL) = 0;
 
-public: // observer function
+    /*======== observer function interface ========*/
     /*!
      * Create an observer object to ERPC system.
      * @param[in] observer  The name of observer object you want to create.

@@ -317,10 +317,8 @@ int RPCCore::registerService(const string &service, ServiceHandler func)
     }
 
     if(NULL != m_service_func_hash.find(service))
-    {
-        K_WARN("RPC : %s server has been exsit!\n", service.c_str());
-        return 1;
-    }
+        K_WARN("RPC : %s server has been exsit, replace it!\n", service.c_str());
+
     return m_service_func_hash.insert(service, (void *) func);
 }
 
@@ -936,7 +934,7 @@ void RPCCore::callBusinessHandler(void *msg)
         handler(msg, data, len);
 }
 
-int RPCCore::registerObserverHandler(void *fdp, void *msg)
+int RPCCore::registerObserverHandler(void *fdp, void *msg, bool flag)  // register, flag = true; unregister, flag = false
 {
     int result = -1;
     struct timeval tv;
@@ -955,7 +953,10 @@ int RPCCore::registerObserverHandler(void *fdp, void *msg)
         K_ERROR("RPC : %s observer is not exsit!\n", request->getModule().c_str());
         return -1;
     }
-    m_observer_connect_hash.insert(request->getModule(), fdp);
+    if(flag)
+        m_observer_connect_hash.insert(request->getModule(), fdp);
+    else
+        m_observer_connect_hash.remove(request->getModule(), fdp);
     
     /* init message head */
     tv = request->getTimeoutTV();
@@ -969,52 +970,12 @@ int RPCCore::registerObserverHandler(void *fdp, void *msg)
     result = insertSenderNode((void *)response);
     if(0 != result)
     {
-        K_ERROR("RPC : register observer handler insert sender node failed!\n");
+        const char *message = flag ? "register" : "unregister";
+        K_ERROR("RPC : %s observer handler insert sender node failed!\n", message);
         releaseRPCMessage((void *)response);
         return result;
     }
 
-    return 0;
-}
-
-int RPCCore::unregisterObserverHandler(void *fdp, void *msg)
-{
-    int result = -1;
-    struct timeval tv;
-    Message *response = NULL;
-    Message *request = (Message *)msg;
-    
-    response = new Message();
-    if(NULL == response)
-    {
-        K_ERROR("RPC : new message memory failed!\n");
-        return -1;
-    }
-
-    if(NULL == m_observer_connect_hash.find(request->getModule()))
-    {
-        K_ERROR("RPC : %s observer is not exsit!\n", request->getModule().c_str());
-        return -1;
-    }
-    m_observer_connect_hash.remove(request->getModule(), fdp);
-    
-    /* init message head */
-    tv = request->getTimeoutTV();
-    response->initObserverResponseMessage(&tv, request->getMessageID(), RPCSUCCESS);
-    /* init body head */
-    response->setBodyHead(m_process_name, request->getSender(), request->getModule(), request->getFunction());
-    /* init body data */
-    response->mallocBodyData(NULL, 0);
-    response->updateBodySize();
-    
-    result = insertSenderNode((void *)response);
-    if(0 != result)
-    {
-        K_ERROR("RPC : unregister observer handler insert sender node failed!\n");
-        releaseRPCMessage((void *)response);
-        return result;
-    }
-    
     return 0;
 }
 
@@ -1613,12 +1574,12 @@ REPEAT_ANALYSE:
                 }
                 else if(string(REGISTEROBSERVERFUNC) == message->getFunction())
                 {
-                    registerObserverHandler(fdp, (void *)message);
+                    registerObserverHandler(fdp, (void *)message, true);
                     releaseRPCMessage((void *)message);
                 }
                 else if(string(UNREGISTEROBSERVERFUNC) == message->getFunction())
                 {
-                    unregisterObserverHandler(fdp, (void *)message);
+                    registerObserverHandler(fdp, (void *)message, false);
                     releaseRPCMessage((void *)message);
                 }
             }
