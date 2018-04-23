@@ -183,7 +183,10 @@ int RPCCore::start(void)
     }
     else
     {
-        SocketBaseOpt::initSockaddr(s_addr, m_process_conf.ip_address.c_str(), m_process_conf.listen_port);
+        if(strstr(m_process_conf.ip_address.c_str(),"INADDR_ANY") || strstr(m_process_conf.ip_address.c_str(),"127.0.0.1"))
+            SocketBaseOpt::initSockaddr(s_addr, m_process_conf.ip_address.c_str(), m_process_conf.listen_port);
+        else
+            SocketBaseOpt::initSockaddr(s_addr, "INADDR_ANY", m_process_conf.listen_port);
         result = m_comm_base.create(commEventHandler, (struct sockaddr *)&s_addr, sizeof(s_addr));
     }
     if(0 != result)
