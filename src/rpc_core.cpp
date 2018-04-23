@@ -566,37 +566,37 @@ int RPCCore::proxyCall(const string &module, const string &func, void *send, siz
     return result;
 }
 
-int RPCCore::createObserver(const string &observer)
+int RPCCore::createObserved(const string &observed)
 {
-    if(observer.empty())
+    if(observed.empty())
     {
-        K_ERROR("RPC : observer name can't be empty!\n");
+        K_ERROR("RPC : observed name can't be empty!\n");
         return -1;
     }
 
-    if(NULL != m_observer_connect_hash.find(observer))
+    if(NULL != m_observer_connect_hash.find(observed))
     {
-        K_WARN("RPC : %s observer has been exsit!\n", observer.c_str());
+        K_WARN("RPC : %s observed has been exsit!\n", observed.c_str());
         return 1;
     }
     
-    return m_observer_connect_hash.insert(observer);
+    return m_observer_connect_hash.insert(observed);
 }
 
-int RPCCore::destroyObserver(const string &observer)
+int RPCCore::destroyObserved(const string &observed)
 {
-    m_observer_connect_hash.remove(observer);
+    m_observer_connect_hash.remove(observed);
     return 0;
 }
 
-int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
+int RPCCore::invokeObserver(const string &observed, void *data, size_t len)
 {
     int result = -1;
     unsigned int frame;
     Message *request = NULL;
     struct timeval tv = {0, 0};
     bool local_observer_flag = false;
-    string observer_handler(observer);
+    string observer_handler(observed);
     ObserverHandler func_handler = NULL;
     string invoke_func(INVOKEOBSERVERFUNC);
     
@@ -606,9 +606,9 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
         return -2;
     }
 
-    if(NULL == m_observer_connect_hash.find(observer))
+    if(NULL == m_observer_connect_hash.find(observed))
     {
-        K_ERROR("RPC : %s observer has not been exsit!\n", observer.c_str());
+        K_ERROR("RPC : %s observed has not been exsit!\n", observed.c_str());
         return -1;
     }
 
@@ -620,7 +620,7 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     }
     frame = getFrameID();
     request->initObserverInvokeMessage(&tv, frame, RPCSUCCESS);
-    request->setBodyHead(m_process_name, observer, observer, invoke_func);
+    request->setBodyHead(m_process_name, observed, observed, invoke_func);
     result = request->mallocBodyData(data, len);
     if(0 != result)
     {
@@ -641,9 +641,9 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     }
     
     // send data to observer
-    if(m_observer_connect_hash.empty(observer))
+    if(m_observer_connect_hash.empty(observed))
     {
-        K_INFO("RPC : observer %s list is empty.\n", observer.c_str());
+        K_INFO("RPC : observed %s list is empty.\n", observed.c_str());
         if(false == local_observer_flag)
             releaseRPCMessage((void *)request);
         return 0;
@@ -659,7 +659,7 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
         }
         frame = getFrameID();
         request->initObserverInvokeMessage(&tv, frame, RPCSUCCESS);
-        request->setBodyHead(m_process_name, observer, observer, invoke_func);
+        request->setBodyHead(m_process_name, observed, observed, invoke_func);
         result = request->mallocBodyData(data, len);
         if(0 != result)
         {
@@ -681,210 +681,14 @@ int RPCCore::invokeObserver(const string &observer, void *data, size_t len)
     return 0;
 }
 
-int RPCCore::registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv)
+int RPCCore::registerObserver(const string &module, const string &observed, ObserverHandler func, struct timeval *tv)
 {
-    string process;
-    int result = -1;
-    unsigned int frame;
-    RPCProxy proxy_impl;
-    Message *request = NULL;
-    Message *response = NULL;
-    ProcessConfig process_config;
-    struct timeval timetv = {0, 0};
-    string observer_handler(observer);
-    string register_func(REGISTEROBSERVERFUNC);
-    
-    if(observer.empty())
-    {
-        K_ERROR("RPC : observer name can't be empty!\n");
-        return -1;
-    }
-
-    if(false == m_run_state)
-    {
-        K_ERROR("RPC : %s must ensure RPC is running before use!\n", m_process_name.c_str());
-        return -2;
-    }
-
-    result = m_conf_file->getProcessFromModule(process, module);
-    if(0 != result)
-    {
-        K_ERROR("RPC : current system does't has %s module, please check!\n", module.c_str());
-        return -1;
-    }
-
-    observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
-    if(process == m_process_name)  // module in current process
-    {
-        m_observer_func_hash.insert(observer_handler, (void *)func);
-        return 0;
-    }
-    
-    result = m_conf_file->getProcessNetConfig(process, process_config);
-    if(0 != result)
-    {
-        K_ERROR("RPC : %s process does't not have ip-addr config, please check!\n", process.c_str());
-        return -1;
-    }
-
-    // if user not set tv, use default timeout to wait
-    if((NULL == tv) || ((0 == tv->tv_sec) && (0 == tv->tv_usec)))
-    {
-        timetv.tv_sec = m_comm_tv.tv_sec;
-        timetv.tv_usec = m_comm_tv.tv_usec;
-    }
-    else
-    {
-        timetv.tv_sec = tv->tv_sec;
-        timetv.tv_usec = tv->tv_usec;
-    }
-    
-    request = new Message();
-    if(NULL == request)
-    {
-        K_ERROR("RPC : new link message memory failed!\n");
-        return -1;
-    }
-    frame = getFrameID();
-    request->initObserverRequestMessage(&timetv, frame, RPCSUCCESS);
-    request->setBodyHead(m_process_name, process, observer, register_func);
-    result = request->mallocBodyData(NULL, 0);
-    request->updateBodySize();
-
-    result = proxy_impl.init();
-    if(0 != result)
-    {
-        K_ERROR("RPC : init proxy service failed!\n");
-        releaseRPCMessage((void *)request);
-        return -1;
-    }
-
-    m_proxy_hash.insert(frame, (void *)&proxy_impl);
-    proxy_impl.lock();
-    result = insertSenderNode((void *)request);
-    if(0 != result)
-    {
-        K_ERROR("RPC : register observer insert sender node failed!\n");
-        proxy_impl.unlock();
-        m_proxy_hash.remove(frame);
-        releaseRPCMessage((void *)request);
-        return result;
-    }
-    result = proxy_impl.wait(timetv);
-    response = (Message *)proxy_impl.getResponseMsg();
-    proxy_impl.unlock();
-    m_proxy_hash.remove(frame);
-    proxy_impl.destroy();
-
-    if((0 == result) && response)
-        m_observer_func_hash.insert(observer_handler, (void *)func);
-    
-    releaseRPCMessage((void *)response);
-    
-    return result ? -1 : 0;
+    return registerObserverRequest(module, observed, func, tv, true);
 }
 
-int RPCCore::unregisterObserver(const string &module, const string &observer, struct timeval *tv)
+int RPCCore::unregisterObserver(const string &module, const string &observed, struct timeval *tv)
 {
-    string process;
-    int result = -1;
-    unsigned int frame;
-    RPCProxy proxy_impl;
-    Message *request = NULL;
-    Message *response = NULL;
-    ProcessConfig process_config;
-    struct timeval timetv = {0, 0};
-    string observer_handler(observer);
-    string unregister_func(UNREGISTEROBSERVERFUNC);
-
-    if(observer.empty())
-    {
-        K_ERROR("RPC : observer name can't be empty!\n");
-        return -1;
-    }
-    
-    if(false == m_run_state)
-    {
-        K_ERROR("RPC : %s must ensure RPC is running before use!\n", m_process_name.c_str());
-        return -2;
-    }
-
-    result = m_conf_file->getProcessFromModule(process, module);
-    if(0 != result)
-    {
-        K_ERROR("RPC : current system does't has %s module, please check!\n", module.c_str());
-        return -1;
-    }
-
-    observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
-    if(process == m_process_name)  // module in current process
-    {
-        m_observer_func_hash.remove(observer_handler);
-        return 0;
-    }
-    
-    result = m_conf_file->getProcessNetConfig(process, process_config);
-    if(0 != result)
-    {
-        K_ERROR("RPC : %s process does't not have ip-addr config, please check!\n", process.c_str());
-        return -1;
-    }
-
-    // if user not set tv, use default timeout to wait
-    if((NULL == tv) || ((0 == tv->tv_sec) && (0 == tv->tv_usec)))
-    {
-        timetv.tv_sec = m_comm_tv.tv_sec;
-        timetv.tv_usec = m_comm_tv.tv_usec;
-    }
-    else
-    {
-        timetv.tv_sec = tv->tv_sec;
-        timetv.tv_usec = tv->tv_usec;
-    }
-    
-    request = new Message();
-    if(NULL == request)
-    {
-        K_ERROR("RPC : new link message memory failed!\n");
-        return -1;
-    }
-    frame = getFrameID();
-    request->initObserverRequestMessage(&timetv, frame, RPCSUCCESS);
-    request->setBodyHead(m_process_name, process, observer, unregister_func);
-    result = request->mallocBodyData(NULL, 0);
-    request->updateBodySize();
-
-    result = proxy_impl.init();
-    if(0 != result)
-    {
-        K_ERROR("RPC : init proxy service failed!\n");
-        releaseRPCMessage((void *)request);
-        return -1;
-    }
-
-    m_proxy_hash.insert(frame, (void *)&proxy_impl);
-    proxy_impl.lock();
-    result = insertSenderNode((void *)request);
-    if(0 != result)
-    {
-        K_ERROR("RPC : unregister observer insert sender node failed!\n");
-        proxy_impl.unlock();
-        m_proxy_hash.remove(frame);
-        releaseRPCMessage((void *)request);
-        return result;
-    }
-    result = proxy_impl.wait(timetv);
-    response = (Message *)proxy_impl.getResponseMsg();
-    proxy_impl.unlock();
-    m_proxy_hash.remove(frame);
-    proxy_impl.destroy();
-
-    if((0 == result) && response)
-        m_observer_func_hash.remove(observer_handler);
-
-    releaseRPCMessage((void *)response);
-
-    return result ? -1 : 0;
+    return registerObserverRequest(module, observed, NULL, tv, false);
 }
 
 void RPCCore::signalHandler(int signo)
@@ -950,7 +754,8 @@ int RPCCore::registerObserverHandler(void *fdp, void *msg, bool flag)  // regist
 
     if(NULL == m_observer_connect_hash.find(request->getModule()))
     {
-        K_ERROR("RPC : %s observer is not exsit!\n", request->getModule().c_str());
+        K_ERROR("RPC : %s observed is not exsit!\n", request->getModule().c_str());
+        responseErrorCodeACK(fdp, msg, RPCNOOBSERVEROBJECT);
         return -1;
     }
     if(flag)
@@ -1017,6 +822,122 @@ int RPCCore::commEventHandler(unsigned int type, void *fdp, void *data, size_t l
     }
 
     return 0;
+}
+
+int RPCCore::registerObserverRequest(const string &module, const string &observed, ObserverHandler func, struct timeval *tv, bool flag)
+{
+    string process;
+    int result = -1;
+    unsigned int frame;
+    RPCProxy proxy_impl;
+    Message *request = NULL;
+    Message *response = NULL;
+    ProcessConfig process_config;
+    struct timeval timetv = {0, 0};
+    string observer_handler(observed);
+    string register_func(REGISTEROBSERVERFUNC);
+    string unregister_func(UNREGISTEROBSERVERFUNC);
+    
+    if(observed.empty())
+    {
+        K_ERROR("RPC : observed name can't be empty!\n");
+        return -1;
+    }
+
+    if(false == m_run_state)
+    {
+        K_ERROR("RPC : %s must ensure RPC is running before use!\n", m_process_name.c_str());
+        return -2;
+    }
+
+    result = m_conf_file->getProcessFromModule(process, module);
+    if(0 != result)
+    {
+        K_ERROR("RPC : current system does't has %s module, please check!\n", module.c_str());
+        return -1;
+    }
+
+    observer_handler.append(OBSERVERAPPENDSTRING, strlen(OBSERVERAPPENDSTRING));
+    if(process == m_process_name)  // module in current process
+    {
+        if(flag)
+            m_observer_func_hash.insert(observer_handler, (void *)func);
+        else
+            m_observer_func_hash.remove(observer_handler);
+        return 0;
+    }
+    
+    result = m_conf_file->getProcessNetConfig(process, process_config);
+    if(0 != result)
+    {
+        K_ERROR("RPC : %s process does't not have ip-addr config, please check!\n", process.c_str());
+        return -1;
+    }
+
+    // if user not set tv, use default timeout to wait
+    if((NULL == tv) || ((0 == tv->tv_sec) && (0 == tv->tv_usec)))
+    {
+        timetv.tv_sec = m_comm_tv.tv_sec;
+        timetv.tv_usec = m_comm_tv.tv_usec;
+    }
+    else
+    {
+        timetv.tv_sec = tv->tv_sec;
+        timetv.tv_usec = tv->tv_usec;
+    }
+    
+    request = new Message();
+    if(NULL == request)
+    {
+        K_ERROR("RPC : new link message memory failed!\n");
+        return -1;
+    }
+    frame = getFrameID();
+    request->initObserverRequestMessage(&timetv, frame, RPCSUCCESS);
+    if(flag)
+        request->setBodyHead(m_process_name, process, observed, register_func);
+    else
+        request->setBodyHead(m_process_name, process, observed, unregister_func);
+    result = request->mallocBodyData(NULL, 0);
+    request->updateBodySize();
+
+    result = proxy_impl.init();
+    if(0 != result)
+    {
+        K_ERROR("RPC : init proxy service failed!\n");
+        releaseRPCMessage((void *)request);
+        return -1;
+    }
+
+    m_proxy_hash.insert(frame, (void *)&proxy_impl);
+    proxy_impl.lock();
+    result = insertSenderNode((void *)request);
+    if(0 != result)
+    {
+        const char *message = flag ? "register" : "unregister";
+        K_ERROR("RPC : %s observer insert sender node failed!\n", message);
+        proxy_impl.unlock();
+        m_proxy_hash.remove(frame);
+        releaseRPCMessage((void *)request);
+        return result;
+    }
+    result = proxy_impl.wait(timetv);
+    response = (Message *)proxy_impl.getResponseMsg();
+    proxy_impl.unlock();
+    m_proxy_hash.remove(frame);
+    proxy_impl.destroy();
+
+    if((0 == result) && response)
+    {
+        if(flag)
+            m_observer_func_hash.insert(observer_handler, (void *)func);
+        else
+            m_observer_func_hash.remove(observer_handler);
+    }
+    
+    releaseRPCMessage((void *)response);
+    
+    return result ? -1 : 0;
 }
 
 int RPCCore::initRPC(void)
@@ -1404,37 +1325,6 @@ int RPCCore::getExecutableName(string &process_name)
     return 0;
 }
 
-int RPCCore::responseErrorCodeACK(void *fdp, void *msg)
-{
-    int result = -1;
-    struct timeval tv;
-    Message *response = NULL;
-    Message *request = (Message *)msg;
-    
-    response = new Message();
-    if(NULL == response)
-    {
-        K_ERROR("RPC : new message memory failed!\n");
-        return -1;
-    }
-
-    tv = request->getTimeoutTV();
-    response->initApplyResponseMessage(&tv, request->getMessageID(), RPCNOSPECIFYSERVICE);
-    response->setBodyHead(m_process_name, request->getSender(), request->getModule(), request->getFunction());
-    response->mallocBodyData(NULL, 0);
-    response->updateBodySize();
-
-    result = insertSenderNode((void *)response);
-    if(0 != result)
-    {
-        K_ERROR("RPC : error code insert sender node failed!\n");
-        releaseRPCMessage((void *)response);
-        return result;
-    }
-
-    return 0;
-}
-
 int RPCCore::connectToProcess(string process, void **connect_fd)
 {
     int result = -1;
@@ -1524,7 +1414,7 @@ REPEAT_ANALYSE:
                 if(NULL == func_handler)
                 {
                     K_ERROR("RPC : %s module does't has %s function, please check!\n", message->getModule().c_str(), message->getFunction().c_str());
-                    responseErrorCodeACK(fdp, (void *)message);
+                    responseErrorCodeACK(fdp, (void *)message, RPCNOSPECIFYSERVICE);
                     releaseRPCMessage((void *)message);
                     return -1;
                 }
@@ -1559,7 +1449,6 @@ REPEAT_ANALYSE:
                     if(NULL == func_handler)
                     {
                         K_ERROR("RPC : does't has %s observer function, please check!\n", message->getModule().c_str());
-                        responseErrorCodeACK(fdp, (void *)message);
                         releaseRPCMessage((void *)message);
                         return -1;
                     }
@@ -1593,3 +1482,33 @@ REPEAT_ANALYSE:
     return 0;
 }
 
+int RPCCore::responseErrorCodeACK(void *fdp, void *msg, unsigned int errorCode)
+{
+    int result = -1;
+    struct timeval tv;
+    Message *response = NULL;
+    Message *request = (Message *)msg;
+    
+    response = new Message();
+    if(NULL == response)
+    {
+        K_ERROR("RPC : new message memory failed!\n");
+        return -1;
+    }
+
+    tv = request->getTimeoutTV();
+    response->initApplyResponseMessage(&tv, request->getMessageID(), errorCode);
+    response->setBodyHead(m_process_name, request->getSender(), request->getModule(), request->getFunction());
+    response->mallocBodyData(NULL, 0);
+    response->updateBodySize();
+
+    result = insertSenderNode((void *)response);
+    if(0 != result)
+    {
+        K_ERROR("RPC : error code insert sender node failed!\n");
+        releaseRPCMessage((void *)response);
+        return result;
+    }
+
+    return 0;
+}

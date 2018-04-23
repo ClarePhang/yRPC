@@ -135,26 +135,26 @@ public:
 
     /*======== observer function interface ========*/
     /*!
-     * Create an observer object to ERPC system.
-     * @param[in] observer  The name of observer object you want to create.
+     * Create an observed object to ERPC system.
+     * @param[in] observed  The name of observed object you want to create.
      * @return
-     * -  1 : the observer has created, just use it.
-     * -  0 : create observer object ok.
-     * - -1 : create observer object failed.
+     * -  1 : the observed has created, just use it.
+     * -  0 : create observed object ok.
+     * - -1 : create observed object failed.
      */
-    virtual int createObserver(const string &observer) = 0;
+    virtual int createObserved(const string &observed) = 0;
     /*!
-     * Destroy an observer object from ERPC system.
-     * @param[in] observer  The name of observer object you want to destroy.
+     * Destroy an observed object from ERPC system.
+     * @param[in] observed  The name of observed object you want to destroy.
      * @return
-     * -  0 : destroy observer object ok.
-     * - -1 : destroy observer object failed.
+     * -  0 : destroy observed object ok.
+     * - -1 : destroy observed object failed.
      */
-    virtual int destroyObserver(const string &observer) = 0;
+    virtual int destroyObserved(const string &observed) = 0;
     /*!
      * When observer object state changed, just call invokeObserver(), and all observers
      * will be received the new state.
-     * @param[in] observer The observer object name when you call createObserver().
+     * @param[in] observed The observed object name when you call createObserver().
      * @param[in] data   The data you want to send to observers if needed.
      * @param[in] len    The length of the data send to observers.
      * @return
@@ -162,30 +162,30 @@ public:
      * - -1 : invoke observers failed!
      * - -2 : ERPC framework has not been running.
      */
-    virtual int invokeObserver(const string &observer, void *data, size_t len) = 0;
+    virtual int invokeObserver(const string &observed, void *data, size_t len) = 0;
     /*!
      * Register a observer to 'module' observer object.
      * @param[in] module The module of the observer object be seated in.
-     * @param[in] observer  The observer you want to register to.
-     * @param[in] func   The call back function pointer on observer object state changed.
+     * @param[in] observed  The observed you want to register to.
+     * @param[in] func   The call back function pointer on observed object state changed.
      * @param[in] tv   The time you want to wait until register return.\n
      * @return
      * -  0 : register observer OK.
      * - -1 : register observer failed.
      * - -2 : ERPC framework has not been running.
      */
-    virtual int registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv = NULL) = 0;
+    virtual int registerObserver(const string &module, const string &observed, ObserverHandler func, struct timeval *tv = NULL) = 0;
     /*!
-     * Unregister a observer from 'module' observer object.
-     * @param[in] module  The module of the observer object be seated in.
-     * @param[in] observer  The observer you want to unregister from.
+     * Unregister a observer from 'module' observed object.
+     * @param[in] module  The module of the observed object be seated in.
+     * @param[in] observed  The observed you want to unregister from.
      * @param[in] tv   The time you want to wait until unregister return.\n
      * @return
      * -  0 : unregister observer OK.
      * - -1 : unregister observer failed.
      * - -2 : ERPC framework has not been running.
      */
-    virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL) = 0;
+    virtual int unregisterObserver(const string &module, const string &observed, struct timeval *tv = NULL) = 0;
 
 private:
     /*!

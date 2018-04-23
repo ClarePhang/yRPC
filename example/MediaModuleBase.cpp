@@ -36,7 +36,7 @@ int MediaModuleBase::startModule(void)
         return -1;
 
     m_rpc->registerService("mediaControl", mediaControl);
-    m_rpc->createObserver("mediaState");
+    m_rpc->createObserved("mediaState");
     
     if(pthread_create(&m_thread_id, NULL, MediaBusinessThread, NULL) != 0)
         return -1;

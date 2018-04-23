@@ -42,11 +42,11 @@ public:
     virtual int proxyCall(const string &module, const string &func, void *send, size_t slen, void *recv, size_t *rlen, struct timeval *tv = NULL);
 
     /*======== observer function interface ========*/
-    virtual int createObserver(const string &observer);
-    virtual int destroyObserver(const string &observer);
-    virtual int invokeObserver(const string &observer, void *data, size_t len);
-    virtual int registerObserver(const string &module, const string &observer, ObserverHandler func, struct timeval *tv = NULL);
-    virtual int unregisterObserver(const string &module, const string &observer, struct timeval *tv = NULL);
+    virtual int createObserved(const string &observed);
+    virtual int destroyObserved(const string &observed);
+    virtual int invokeObserver(const string &observed, void *data, size_t len);
+    virtual int registerObserver(const string &module, const string &observed, ObserverHandler func, struct timeval *tv = NULL);
+    virtual int unregisterObserver(const string &module, const string &observed, struct timeval *tv = NULL);
 
 private:
     RPCCore();
@@ -57,6 +57,7 @@ private:
     static void callBusinessHandler(void *msg);
     static int registerObserverHandler(void *fdp, void *msg, bool flag);
     static int commEventHandler(unsigned int type, void *fdp, void *data, size_t len);
+    static int registerObserverRequest(const string &module, const string &observed, ObserverHandler func, struct timeval *tv, bool flag);
 
 private:
     static int initRPC(void);
@@ -68,9 +69,9 @@ private:
     static int requestLink(void *fdp, void *msg);
     static int responseLink(void *fdp, void *msg);
     static int getExecutableName(string &process_name);
-    static int responseErrorCodeACK(void *fdp, void *msg);
     static int connectToProcess(string process, void **connect_fd);
     static int analyseReceiveData(void *fdp, const void *data, size_t len);
+    static int responseErrorCodeACK(void *fdp, void *msg, unsigned int errorCode);
     
 private:
     static bool m_run_state;
